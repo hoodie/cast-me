@@ -167,6 +167,7 @@ async fn peer_connected(ws: WebSocket, broker: Broker) {
                             (Some(ref mut correspondent), Ok(content)) => {
                                 if let Err(e) = correspondent.send(PeerMessage::P2P(content.into())) { // TODO: redundant repacking
                                     debug!("failed to forward {}", e);
+                                    break;
                                 }
                             }
                             _ => {}
@@ -212,7 +213,7 @@ async fn peer_connected(ws: WebSocket, broker: Broker) {
 async fn main() {
     color_backtrace::install();
     if env::var(LOG_VAR).is_err() {
-        env::set_var(LOG_VAR, "cast_me=debug,warp=info");
+        env::set_var(LOG_VAR, "cast_me=trace,warp=info");
     }
     env_logger::init_from_env(Env::new().filter(LOG_VAR));
 
