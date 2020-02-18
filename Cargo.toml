@@ -1,0 +1,31 @@
+[package]
+name = "cast-me"
+version = "0.1.0"
+authors = ["Hendrik Sollich <hendrik@hoodie.de>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+futures = "0.3"
+log = "0.4"
+env_logger = "0.7"
+color-backtrace = "0.3"
+serde_json = "1.0.48"
+human-hash = "0.3.0"
+
+[dependencies.serde]
+version = "1.0"
+features = ["derive"]
+
+[dependencies.tokio]
+version = "0.2"
+features = ["full"]
+
+
+[dependencies.uuid]
+version = "0.8"
+features = ["v4", "serde"]
+
+[dependencies.warp]
+version = "0.2"
