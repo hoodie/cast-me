@@ -2,7 +2,11 @@
 use std::{collections::BTreeMap, env, error::Error, sync::Arc};
 
 use env_logger::Env;
-use futures::{sink::SinkExt, stream::SplitSink, FutureExt, StreamExt};
+use futures::{
+    sink::SinkExt,
+    stream::{SplitSink, SplitStream},
+    FutureExt, StreamExt,
+};
 use log::*;
 use serde::{Deserialize, Serialize};
 use tokio::{
@@ -15,26 +19,26 @@ use warp::{
     Filter,
 };
 
-const LOG_VAR: &str = "CASTME_LOG";
+mod peer;
+use crate::peer::Peer;
 
-#[derive(Default)]
-struct InnerState {}
-
-// type State = Arc<Mutex<InnerState>>;
+const LOG_VAR: &str = "CAST_ME_LOG";
 
 type Sender<T> = mpsc::UnboundedSender<T>;
+type Receiver<T> = mpsc::UnboundedReceiver<T>;
 type PeerSender = mpsc::UnboundedSender<PeerMessage>;
+
 
 // Peer -> Broker Messages
 #[derive(Debug)]
-enum BrokerMsg {
+pub enum BrokerMsg {
     Register { uuid: Uuid, peer: PeerSender },
     Connect { from: Uuid, to: Uuid },
 }
 
 // P2P / Broker -> Peer Messages
 #[derive(Debug)]
-enum PeerMessage {
+pub enum PeerMessage {
     P2P(String),
     Connected(PeerSender),
 }
@@ -59,10 +63,48 @@ struct Broker {
 }
 
 impl Broker {
+    fn register_peer(
+        loose_channels: &mut BTreeMap<Uuid, PeerSender>,
+        uuid: Uuid,
+        peer: PeerSender,
+    ) {
+        if let Some(_peer) = loose_channels.insert(uuid, peer) {
+            warn!("uuid collision {}", uuid);
+        }
+        info!(
+            "registered peer under {} {:#?}",
+            uuid,
+            loose_channels.keys()
+        );
+    }
+
+    fn connect_peers(loose_channels: &mut BTreeMap<Uuid, PeerSender>, from: Uuid, to: Uuid) {
+        if let (Some(peer_a), Some(peer_b)) =
+            (loose_channels.remove(&from), loose_channels.remove(&to))
+        {
+            info!("connecting peers {} and {}", from, to);
+            match (
+                peer_a.send(PeerMessage::Connected(peer_b.clone())),
+                peer_b.send(PeerMessage::Connected(peer_a)),
+            ) {
+                (Err(err), _) => error!("failed to send b to a, reason: {}", err),
+                (_, Err(err)) => error!("failed to send a to b, reason: {}", err),
+                _ => info!(
+                    "connected {} with {} | inventory={:#?}",
+                    from,
+                    to,
+                    loose_channels.keys()
+                ),
+            }
+        } else {
+            warn!("no uuid match {} {}", from, to);
+        }
+    }
+
     fn create() -> (Broker, JoinHandle<()>) {
         let (tx, mut rx) = mpsc::unbounded_channel();
 
-        // only those that don't have a parnter yet
+        // only those that don't have a partner yet
         let mut loose_channels: BTreeMap<Uuid, PeerSender> = BTreeMap::new();
 
         let broker_loop = task::spawn(async move {
@@ -71,37 +113,11 @@ impl Broker {
                 debug!("broker received {:?}", res);
                 match res {
                     BrokerMsg::Register { uuid, peer } => {
-                        if let Some(_peer) = loose_channels.insert(uuid, peer) {
-                            warn!("uuid collision {}", uuid);
-                        }
-                        info!(
-                            "registered peer under {} {:#?}",
-                            uuid,
-                            loose_channels.keys()
-                        );
+                        Self::register_peer(&mut loose_channels, uuid, peer)
                     }
 
                     BrokerMsg::Connect { from, to } => {
-                        if let (Some(peer_a), Some(peer_b)) =
-                            (loose_channels.remove(&from), loose_channels.remove(&to))
-                        {
-                            info!("connecting peers {} and {}", from, to);
-                            match (
-                                peer_a.send(PeerMessage::Connected(peer_b.clone())),
-                                peer_b.send(PeerMessage::Connected(peer_a)),
-                            ) {
-                                (Err(err), _) => error!("failed to send b to a, reason: {}", err),
-                                (_, Err(err)) => error!("failed to send a to b, reason: {}", err),
-                                _ => info!(
-                                    "connected {} with {} | inventory={:#?}",
-                                    from,
-                                    to,
-                                    loose_channels.keys()
-                                ),
-                            }
-                        } else {
-                            warn!("no uuid match {} {}", from, to);
-                        }
+                        Self::connect_peers(&mut loose_channels, from, to)
                     }
                 }
             }
@@ -111,102 +127,14 @@ impl Broker {
     }
 }
 
+#[allow(clippy::cognitive_complexity)]
 async fn peer_connected(ws: WebSocket, broker: Broker) {
     debug!("user connected{:#?}", ws);
 
-    let (mut socket_tx, mut socket_rx) = ws.split();
-    let (broker_tx, mut broker_rx) = mpsc::unbounded_channel::<PeerMessage>();
-
-    let my_uuid = Uuid::new_v4();
-
-    // register at broker
-    broker
-        .to_broker
-        .send(BrokerMsg::Register {
-            uuid: my_uuid,
-            peer: broker_tx.clone(),
-        })
-        .unwrap();
-
-    
-    // send uuid to user
-    if let Err(e) = socket_tx
-        .send(Message::text(
-            serde_json::to_string(&Protocol::Welcome(my_uuid)).unwrap(),
-        ))
-        .await
-    {
-        warn!("failed to send on websocket {:?}", e);
-    }
-
-    // wait for correspondent
-    let mut correspondent: Option<PeerSender> = None;
-
-    loop {
-        tokio::select! {
-            received = socket_rx.next() => {
-                if let Some(received) = received {
-                    debug!("received on ws {:?}", received);
-                    if let Ok(raw_content) = received {
-
-                        match (&mut correspondent, raw_content.to_str()) {
-                            (None, Ok(_)) => {
-                                if let Ok(Protocol::Connect(uuid)) = raw_content.to_str().and_then(|s|serde_json::from_str(&s).map_err(|_|())) {
-                                    debug!("connecting to {}", uuid);
-                                    broker
-                                        .to_broker
-                                        .send(BrokerMsg::Connect {
-                                            from: my_uuid,
-                                            to: uuid,
-                                        })
-                                        .unwrap();
-                                } else {
-                                    trace!("no corresponded, ignoring");
-                                }
-                            }
-                            (Some(ref mut correspondent), Ok(content)) => {
-                                if let Err(e) = correspondent.send(PeerMessage::P2P(content.into())) { // TODO: redundant repacking
-                                    debug!("failed to forward {}", e);
-                                    break;
-                                }
-                            }
-                            _ => {}
-
-                        }
-                    } else {
-                        debug!("unhandled message",);
-                    }
-                } else {
-                    break
-                }
-            }
-            Some(received) = broker_rx.next() => {
-                debug!("peer received from broker {:?}", received);
-                match (received, &mut correspondent) {
-
-
-                    // from the correspondent, send on socket
-                    (PeerMessage::P2P( ref content ), _) => {
-                        if let Err (e) = socket_tx.send(Message::text(content)).await {
-                            warn!("failed to send on websocket {:?}", e);
-                        }
-                    }
-
-                    (PeerMessage::Connected(_), Some(_)) => {
-                        warn!("already have a correspondent");
-                    }
-
-                    (PeerMessage::Connected(other_peer), None) => {
-                        correspondent.replace(other_peer);
-                        info!("set a correspondent");
-                    }
-
-                }
-            }
-        }
-    }
-
-    info!("peer quit {}", my_uuid);
+    let mut peer = Peer::new(ws, broker.to_broker);
+    peer.register_at_broker();
+    peer.send_welcome().await;
+    peer.start().await;
 }
 
 #[tokio::main]
