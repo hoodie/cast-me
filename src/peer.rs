@@ -16,10 +16,33 @@ use warp::{
     Filter,
 };
 
-use super::*;
+use crate::{broker::BrokerMsg, Receiver, Sender};
 
 type WsSender = SplitSink<WebSocket, Message>;
 type WsReceiver = SplitStream<WebSocket>;
+
+pub type PeerSender = mpsc::UnboundedSender<PeerMessage>;
+
+// P2P / Broker -> Peer Messages
+#[derive(Debug)]
+pub enum PeerMessage {
+    P2P(String),
+    Connected(PeerSender),
+}
+
+impl From<&str> for PeerMessage {
+    fn from(s: &str) -> Self {
+        Self::P2P(s.into())
+    }
+}
+
+// websocket json protocol
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+enum Protocol {
+    Welcome(Uuid),
+    Connect(Uuid),
+}
 
 pub struct Peer {
     pub my_uuid: Uuid,
