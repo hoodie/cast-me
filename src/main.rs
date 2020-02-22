@@ -44,7 +44,7 @@ async fn main() {
                 ws.on_upgrade(move |socket| peer_connected(socket, broker))
             });
 
-    let index = warp::path::end().map(|| warp::reply::html(include_str!("../index.html")));
+    let index = warp::fs::dir("./static");
 
     let routes = index.or(chat);
 

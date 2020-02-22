@@ -1,26 +1,17 @@
-use std::{collections::BTreeMap, env, error::Error, sync::Arc};
+use std::collections::BTreeMap;
 
-use env_logger::Env;
-use futures::{
-    sink::SinkExt,
-    stream::{SplitSink, SplitStream},
-    FutureExt, StreamExt,
-};
+use futures::StreamExt;
 use log::*;
-use serde::{Deserialize, Serialize};
+
 use tokio::{
-    sync::{mpsc, Mutex},
+    sync::mpsc,
     task::{self, JoinHandle},
 };
 use uuid::Uuid;
-use warp::{
-    ws::{Message, WebSocket},
-    Filter,
-};
 
 use crate::{
     peer::{PeerMessage, PeerSender},
-    Receiver, Sender,
+    Sender,
 };
 
 // Peer -> Broker Messages

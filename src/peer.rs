@@ -1,20 +1,13 @@
-use env_logger::Env;
 use futures::{
     sink::SinkExt,
     stream::{SplitSink, SplitStream},
-    FutureExt, StreamExt,
+    StreamExt,
 };
 use log::*;
 use serde::{Deserialize, Serialize};
-use tokio::{
-    sync::{mpsc, Mutex},
-    task::{self, JoinHandle},
-};
+use tokio::sync::mpsc;
 use uuid::Uuid;
-use warp::{
-    ws::{Message, WebSocket},
-    Filter,
-};
+use warp::ws::{Message, WebSocket};
 
 use crate::{broker::BrokerMsg, Receiver, Sender};
 
@@ -55,39 +48,6 @@ pub struct Peer {
 }
 
 impl Peer {
-    pub async fn handle_broker_msg(
-        mut correspondent: &mut Option<PeerSender>,
-        received: PeerMessage,
-        socket_tx: &mut SplitSink<WebSocket, Message>,
-    ) {
-        debug!("peer received from broker {:?}", received);
-        match (received, &mut correspondent) {
-            // from the correspondent, send on socket
-            (PeerMessage::P2P(ref content), _) => {
-                if let Err(e) = socket_tx.send(Message::text(content)).await {
-                    warn!("failed to send on websocket {:?}", e);
-                }
-            }
-
-            (PeerMessage::Connected(_), Some(_)) => warn!("already have a correspondent"),
-
-            (PeerMessage::Connected(other_peer), None) => {
-                correspondent.replace(other_peer);
-                info!("set a correspondent");
-            }
-        }
-    }
-
-    pub fn register_at_broker(&mut self) {
-        // register at broker
-        self.broker_addr
-            .send(BrokerMsg::Register {
-                uuid: self.my_uuid,
-                peer: self.peer_sender.clone(),
-            })
-            .unwrap();
-    }
-
     pub fn new(ws: WebSocket, broker_addr: Sender<BrokerMsg>) -> Self {
         let my_uuid = Uuid::new_v4();
         let (peer_sender, peer_receiver) = mpsc::unbounded_channel::<PeerMessage>();
@@ -105,17 +65,15 @@ impl Peer {
         }
     }
 
+    pub fn register_at_broker(&mut self) {
+        self.send_to_broker(BrokerMsg::Register {
+            uuid: self.my_uuid,
+            peer: self.peer_sender.clone(),
+        });
+    }
+
     pub async fn send_welcome(&mut self) {
-        // send uuid to user
-        if let Err(e) = self
-            .ws_sender
-            .send(Message::text(
-                serde_json::to_string(&Protocol::Welcome(self.my_uuid)).unwrap(),
-            ))
-            .await
-        {
-            warn!("failed to send on websocket {:?}", e);
-        }
+        self.send_to_remote(Protocol::Welcome(self.my_uuid)).await;
     }
 
     pub async fn start(&mut self) {
@@ -130,12 +88,10 @@ impl Peer {
                                 (None, Ok(_)) => {
                                     if let Ok(Protocol::Connect(uuid)) = raw_content.to_str().and_then(|s|serde_json::from_str(&s).map_err(|_|())) {
                                         debug!("connecting to {}", uuid);
-                                        self.broker_addr
-                                            .send(BrokerMsg::Connect {
+                                        self.send_to_broker(BrokerMsg::Connect {
                                                 from: self.my_uuid,
                                                 to: uuid,
-                                            })
-                                            .unwrap();
+                                            });
                                     } else {
                                         trace!("no corresponded, ignoring");
                                     }
@@ -162,6 +118,44 @@ impl Peer {
             }
         }
 
-        // info!("peer quit {}", my_uuid);
+        info!("peer quit {}", self.my_uuid);
+    }
+
+    async fn handle_broker_msg(
+        mut correspondent: &mut Option<PeerSender>,
+        received: PeerMessage,
+        socket_tx: &mut SplitSink<WebSocket, Message>,
+    ) {
+        debug!("peer received from broker {:?}", received);
+        match (received, &mut correspondent) {
+            // from the correspondent, send on socket
+            (PeerMessage::P2P(ref content), _) => {
+                if let Err(e) = socket_tx.send(Message::text(content)).await {
+                    warn!("failed to send on websocket {:?}", e);
+                }
+            }
+
+            (PeerMessage::Connected(_), Some(_)) => warn!("already have a correspondent"),
+
+            (PeerMessage::Connected(other_peer), None) => {
+                correspondent.replace(other_peer);
+                info!("set a correspondent");
+            }
+        }
+    }
+
+
+    async fn send_to_remote(&mut self, msg: Protocol) {
+        if let Err(e) = self
+            .ws_sender
+            .send(Message::text(serde_json::to_string(&msg).unwrap()))
+            .await
+        {
+            warn!("failed to send on websocket {:?}", e);
+        }
+    }
+
+    fn send_to_broker(&self, msg: BrokerMsg) {
+        self.broker_addr.send(msg).unwrap();
     }
 }
