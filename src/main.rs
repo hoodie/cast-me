@@ -3,7 +3,7 @@ use std::env;
 use env_logger::Env;
 use log::*;
 use tokio::sync::mpsc;
-use warp::{ws::WebSocket, Filter};
+use warp::{http::Uri, ws::WebSocket, Filter};
 
 mod broker;
 mod peer;
@@ -36,7 +36,7 @@ async fn main() {
     let (broker, broker_loop) = Broker::create();
     let broker = warp::any().map(move || broker.clone());
 
-    let chat =
+    let channel =
         warp::path("ws")
             .and(warp::ws())
             .and(broker)
@@ -44,9 +44,11 @@ async fn main() {
                 ws.on_upgrade(move |socket| peer_connected(socket, broker))
             });
 
-    let index = warp::fs::dir("./static");
+    let redirect_to_app = warp::any().map(|| warp::redirect(Uri::from_static("/app/")));
+    let test = warp::path::end().map(|| warp::reply::html(include_str!("../static/index.html")));
+    let app = warp::path("app").and(warp::fs::dir("./app/public/"));
 
-    let routes = index.or(chat);
+    let routes = test.or(app).or(channel).or(redirect_to_app);
 
     let listen_on = std::net::SocketAddr::from(([127, 0, 0, 1], 3030));
     info!("listening on {}", listen_on);

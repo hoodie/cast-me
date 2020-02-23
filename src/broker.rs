@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 
 use futures::StreamExt;
 use log::*;
@@ -31,11 +31,7 @@ impl Broker {
         self.to_broker
     }
 
-    fn register_peer(
-        loose_channels: &mut BTreeMap<Uuid, PeerSender>,
-        uuid: Uuid,
-        peer: PeerSender,
-    ) {
+    fn register_peer(loose_channels: &mut HashMap<Uuid, PeerSender>, uuid: Uuid, peer: PeerSender) {
         if let Some(_peer) = loose_channels.insert(uuid, peer) {
             warn!("uuid collision {}", uuid);
         }
@@ -46,7 +42,7 @@ impl Broker {
         );
     }
 
-    fn connect_peers(loose_channels: &mut BTreeMap<Uuid, PeerSender>, from: Uuid, to: Uuid) {
+    fn connect_peers(loose_channels: &mut HashMap<Uuid, PeerSender>, from: Uuid, to: Uuid) {
         if let (Some(peer_a), Some(peer_b)) =
             (loose_channels.remove(&from), loose_channels.remove(&to))
         {
@@ -69,11 +65,21 @@ impl Broker {
         }
     }
 
+    fn clean_out_dead_peers(loose_channels: &mut HashMap<Uuid, PeerSender>) {
+        loose_channels.retain(|&uuid, peer| {
+            if let Err(e) = peer.send(PeerMessage::Ping) {
+                debug!("removing peer {}, {}", uuid, e);
+                return false;
+            };
+            true
+        });
+    }
+
     pub fn create() -> (Broker, JoinHandle<()>) {
         let (tx, mut rx) = mpsc::unbounded_channel();
 
         // only those that don't have a partner yet
-        let mut loose_channels: BTreeMap<Uuid, PeerSender> = BTreeMap::new();
+        let mut loose_channels: HashMap<Uuid, PeerSender> = HashMap::new();
 
         let broker_loop = task::spawn(async move {
             debug!("broker loop");
@@ -81,11 +87,12 @@ impl Broker {
                 debug!("broker received {:?}", res);
                 match res {
                     BrokerMsg::Register { uuid, peer } => {
+                        Self::clean_out_dead_peers(&mut loose_channels);
                         Self::register_peer(&mut loose_channels, uuid, peer)
                     }
 
                     BrokerMsg::Connect { from, to } => {
-                        Self::connect_peers(&mut loose_channels, from, to)
+                        Self::connect_peers(&mut loose_channels, from, to);
                     }
                 }
             }

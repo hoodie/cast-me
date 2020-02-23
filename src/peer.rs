@@ -21,6 +21,7 @@ pub type PeerSender = mpsc::UnboundedSender<PeerMessage>;
 pub enum PeerMessage {
     P2P(String),
     Connected(PeerSender),
+    Ping,
 }
 
 impl From<&str> for PeerMessage {
@@ -79,36 +80,33 @@ impl Peer {
     pub async fn start(&mut self) {
         loop {
             tokio::select! {
-                received = self.ws_receiver.next() => {
-                    if let Some(received) = received {
-                        debug!("received on ws {:?}", received);
-                        if let Ok(raw_content) = received {
+                Some(received) = self.ws_receiver.next() => {
+                    debug!("received on ws {:?}", received);
+                    if let Ok(raw_content) = received {
 
-                            match (&mut self.correspondent, raw_content.to_str()) {
-                                (None, Ok(_)) => {
-                                    if let Ok(Protocol::Connect(uuid)) = raw_content.to_str().and_then(|s|serde_json::from_str(&s).map_err(|_|())) {
-                                        debug!("connecting to {}", uuid);
-                                        self.send_to_broker(BrokerMsg::Connect {
-                                                from: self.my_uuid,
-                                                to: uuid,
-                                            });
-                                    } else {
-                                        trace!("no corresponded, ignoring");
-                                    }
+                        match (&mut self.correspondent, raw_content.to_str()) {
+                            (None, Ok(_)) => {
+                                if let Ok(Protocol::Connect(uuid)) = raw_content.to_str().and_then(|s|serde_json::from_str(&s).map_err(|_|())) {
+                                    debug!("connecting to {}", uuid);
+                                    self.send_to_broker(BrokerMsg::Connect {
+                                            from: self.my_uuid,
+                                            to: uuid,
+                                        });
+                                } else {
+                                    trace!("no corresponded, ignoring");
                                 }
-                                (Some(ref mut correspondent), Ok(content)) => {
-                                    if let Err(e) = correspondent.send(PeerMessage::P2P(content.into())) { // TODO: redundant repacking
-                                        debug!("failed to forward {}", e);
-                                        break;
-                                    }
-                                }
-                                _ => {}
-
                             }
-                        } else {
-                            debug!("unhandled message",);
+                            (Some(ref mut correspondent), Ok(content)) => {
+                                if let Err(e) = correspondent.send(PeerMessage::P2P(content.into())) { // TODO: redundant repacking
+                                    debug!("failed to forward {}", e);
+                                    break;
+                                }
+                            }
+                            _ => {}
+
                         }
                     } else {
+                        debug!("unhandled message: {:?}", received);
                         break
                     }
                 }
@@ -141,9 +139,11 @@ impl Peer {
                 correspondent.replace(other_peer);
                 info!("set a correspondent");
             }
+            (PeerMessage::Ping, _) => {
+                // I'm alive
+            }
         }
     }
-
 
     async fn send_to_remote(&mut self, msg: Protocol) {
         if let Err(e) = self
