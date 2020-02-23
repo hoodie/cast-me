@@ -18,7 +18,7 @@ type WsReceiver = SplitStream<WebSocket>;
 
 pub type PeerSender = mpsc::UnboundedSender<PeerMessage>;
 
-#[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PeerId(String);
 
 impl PeerId {
@@ -33,8 +33,13 @@ impl Clone for PeerId {
     }
 }
 
+impl fmt::Display for PeerId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
-impl fmt::Display for PeerId{
+impl fmt::Debug for PeerId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
@@ -44,7 +49,7 @@ impl fmt::Display for PeerId{
 #[derive(Debug)]
 pub enum PeerMessage {
     P2P(String),
-    Connected(PeerSender),
+    Connected(PeerSender, PeerId),
     Ping,
 }
 
@@ -60,6 +65,15 @@ impl From<&str> for PeerMessage {
 enum Protocol {
     Welcome(PeerId),
     Connect(PeerId),
+    Connected(PeerId),
+}
+
+impl fmt::Display for Protocol {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let msg = serde_json::to_string(&self)
+            .unwrap_or_else(|_| String::from(r#"{"error": "unserializable"}"#));
+        write!(f, "{}", msg)
+    }
 }
 
 pub struct Peer {
@@ -98,7 +112,8 @@ impl Peer {
     }
 
     pub async fn send_welcome(&mut self) {
-        self.send_to_remote(Protocol::Welcome(self.my_id.clone())).await;
+        self.send_to_remote(Protocol::Welcome(self.my_id.clone()))
+            .await;
     }
 
     pub async fn start(&mut self) {
@@ -157,10 +172,14 @@ impl Peer {
                 }
             }
 
-            (PeerMessage::Connected(_), Some(_)) => warn!("already have a correspondent"),
+            (PeerMessage::Connected(..), Some(_)) => warn!("already have a correspondent"),
 
-            (PeerMessage::Connected(other_peer), None) => {
+            (PeerMessage::Connected(other_peer, other_peer_id), None) => {
                 correspondent.replace(other_peer);
+                let hail = Protocol::Connected(other_peer_id.into());
+                if let Err(e) = socket_tx.send(Message::text(hail.to_string())).await {
+                    warn!("failed to send on websocket {:?}", e);
+                }
                 info!("set a correspondent");
             }
             (PeerMessage::Ping, _) => {

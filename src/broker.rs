@@ -42,13 +42,13 @@ impl Broker {
     }
 
     fn connect_peers(loose_channels: &mut HashMap<PeerId, PeerSender>, from: PeerId, to: PeerId) {
-        if let (Some(peer_a), Some(peer_b)) =
-            (loose_channels.remove(&from), loose_channels.remove(&to))
+        if let (true, Some(peer_b)) = (loose_channels.contains_key(&from), loose_channels.remove(&to))
         {
+            let peer_a = loose_channels.remove(&from).unwrap();
             info!("connecting peers {} and {}", from, to);
             match (
-                peer_a.send(PeerMessage::Connected(peer_b.clone())),
-                peer_b.send(PeerMessage::Connected(peer_a)),
+                peer_a.send(PeerMessage::Connected(peer_b.clone(), to.clone())),
+                peer_b.send(PeerMessage::Connected(peer_a.clone(), from.clone())),
             ) {
                 (Err(err), _) => error!("failed to send b to a, reason: {}", err),
                 (_, Err(err)) => error!("failed to send a to b, reason: {}", err),
