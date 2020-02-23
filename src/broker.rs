@@ -42,6 +42,16 @@ impl Broker {
     }
 
     fn connect_peers(loose_channels: &mut HashMap<PeerId, PeerSender>, from: PeerId, to: PeerId) {
+        // don't be fooled
+        if from == to {
+            if let Some(bad_guy) = loose_channels.remove(&from) {
+                if let Err(e) = bad_guy.send(PeerMessage::Close) {
+                    warn!("failed to send close to {} {}", from, e)
+                }
+                return;
+            }
+        }
+
         if let (true, Some(peer_b)) = (loose_channels.contains_key(&from), loose_channels.remove(&to))
         {
             let peer_a = loose_channels.remove(&from).unwrap();

@@ -51,6 +51,7 @@ pub enum PeerMessage {
     P2P(String),
     Connected(PeerSender, PeerId),
     Ping,
+    Close,
 }
 
 impl From<&str> for PeerMessage {
@@ -66,6 +67,7 @@ enum Protocol {
     Welcome(PeerId),
     Connect(PeerId),
     Connected(PeerId),
+    Bye { reason: String },
 }
 
 impl fmt::Display for Protocol {
@@ -84,6 +86,7 @@ pub struct Peer {
     pub peer_receiver: Receiver<PeerMessage>,
     pub ws_sender: WsSender,
     pub ws_receiver: WsReceiver,
+    retire: bool,
 }
 
 impl Peer {
@@ -95,6 +98,7 @@ impl Peer {
 
         Peer {
             my_id,
+            retire: false,
             correspondent: None,
             broker_addr,
             peer_receiver,
@@ -150,7 +154,11 @@ impl Peer {
                     }
                 }
                 Some(received) = self.peer_receiver.next() => {
-                    Peer::handle_broker_msg(&mut self.correspondent, received, &mut self.ws_sender).await;
+                    // Peer::handle_broker_msg(&mut self.correspondent, received, &mut self.ws_sender).await;
+                    self.handle_broker_msg(received).await;
+                    if self.retire {
+                        break;
+                    }
                 }
             }
         }
@@ -158,43 +166,44 @@ impl Peer {
         info!("peer quit {}", self.my_id);
     }
 
+    async fn send_to_remote(&mut self, msg: impl ToString) {
+        let payload = msg.to_string();
+        if let Err(e) = self.ws_sender.send(Message::text(&payload)).await {
+            warn!("failed to send message on websocket {} {}", payload, e);
+        }
+    }
+
     async fn handle_broker_msg(
-        mut correspondent: &mut Option<PeerSender>,
+        // mut correspondent: &mut Option<PeerSender>,
+        &mut self,
         received: PeerMessage,
-        socket_tx: &mut SplitSink<WebSocket, Message>,
+        // socket_tx: &mut SplitSink<WebSocket, Message>,
     ) {
-        match (received, &mut correspondent) {
+        match (received, &mut self.correspondent) {
             // from the correspondent, send on socket
             (PeerMessage::P2P(ref content), _) => {
                 trace!("peer received P2P");
-                if let Err(e) = socket_tx.send(Message::text(content)).await {
-                    warn!("failed to send on websocket {:?}", e);
-                }
+                self.send_to_remote(content).await;
             }
 
             (PeerMessage::Connected(..), Some(_)) => warn!("already have a correspondent"),
 
             (PeerMessage::Connected(other_peer, other_peer_id), None) => {
-                correspondent.replace(other_peer);
+                self.correspondent.replace(other_peer);
                 let hail = Protocol::Connected(other_peer_id.into());
-                if let Err(e) = socket_tx.send(Message::text(hail.to_string())).await {
-                    warn!("failed to send on websocket {:?}", e);
-                }
+                self.send_to_remote(hail).await;
                 info!("set a correspondent");
+            }
+            (PeerMessage::Close, _) => {
+                self.retire = true;
+                self.send_to_remote(Protocol::Bye {
+                    reason: String::from("kicked"),
+                })
+                .await;
             }
             (PeerMessage::Ping, _) => {
                 // I'm alive
             }
-        }
-    }
-
-    async fn send_to_remote(&mut self, msg: Protocol) {
-        if let Err(e) = self
-            .ws_sender
-            .send(Message::text(serde_json::to_string(&msg).unwrap()))
-            .await
-        {
-            warn!("failed to send on websocket {:?}", e);
         }
     }
 
