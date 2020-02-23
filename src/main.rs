@@ -54,7 +54,11 @@ async fn main() {
     info!("listening on {}", listen_on);
 
     tokio::select! {
-        _ = broker_loop => {},
-        _ = warp::serve(routes).run(listen_on) => {},
-    };
+            _ = broker_loop => {},
+            _ = warp::serve(routes)
+                .tls()
+                .cert_path("testcerts/cert.pem")
+                .key_path("testcerts/key.pem")
+                .run(listen_on) => {},
+        };
 }
