@@ -45,7 +45,7 @@ async fn main() {
             });
 
     let redirect_to_app = warp::any().map(|| warp::redirect(Uri::from_static("/app/")));
-    let test = warp::path::end().map(|| warp::reply::html(include_str!("../static/index.html")));
+    let test = warp::path("test").map(|| warp::reply::html(include_str!("../static/index.html")));
     let app = warp::path("app").and(warp::fs::dir("./app/public/"));
 
     let routes = test.or(app).or(channel).or(redirect_to_app);

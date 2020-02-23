@@ -7,18 +7,17 @@ use tokio::{
     sync::mpsc,
     task::{self, JoinHandle},
 };
-use uuid::Uuid;
 
 use crate::{
-    peer::{PeerMessage, PeerSender},
+    peer::{PeerMessage, PeerSender, PeerId},
     Sender,
 };
 
 // Peer -> Broker Messages
 #[derive(Debug)]
 pub enum BrokerMsg {
-    Register { uuid: Uuid, peer: PeerSender },
-    Connect { from: Uuid, to: Uuid },
+    Register { uuid: PeerId, peer: PeerSender },
+    Connect { from: PeerId, to: PeerId },
 }
 
 #[derive(Clone)]
@@ -31,8 +30,8 @@ impl Broker {
         self.to_broker
     }
 
-    fn register_peer(loose_channels: &mut HashMap<Uuid, PeerSender>, uuid: Uuid, peer: PeerSender) {
-        if let Some(_peer) = loose_channels.insert(uuid, peer) {
+    fn register_peer(loose_channels: &mut HashMap<PeerId, PeerSender>, uuid: PeerId, peer: PeerSender) {
+        if let Some(_peer) = loose_channels.insert(uuid.clone(), peer) {
             warn!("uuid collision {}", uuid);
         }
         info!(
@@ -42,7 +41,7 @@ impl Broker {
         );
     }
 
-    fn connect_peers(loose_channels: &mut HashMap<Uuid, PeerSender>, from: Uuid, to: Uuid) {
+    fn connect_peers(loose_channels: &mut HashMap<PeerId, PeerSender>, from: PeerId, to: PeerId) {
         if let (Some(peer_a), Some(peer_b)) =
             (loose_channels.remove(&from), loose_channels.remove(&to))
         {
@@ -65,8 +64,8 @@ impl Broker {
         }
     }
 
-    fn clean_out_dead_peers(loose_channels: &mut HashMap<Uuid, PeerSender>) {
-        loose_channels.retain(|&uuid, peer| {
+    fn clean_out_dead_peers(loose_channels: &mut HashMap<PeerId, PeerSender>) {
+        loose_channels.retain(|uuid, peer| {
             if let Err(e) = peer.send(PeerMessage::Ping) {
                 debug!("removing peer {}, {}", uuid, e);
                 return false;
@@ -79,7 +78,7 @@ impl Broker {
         let (tx, mut rx) = mpsc::unbounded_channel();
 
         // only those that don't have a partner yet
-        let mut loose_channels: HashMap<Uuid, PeerSender> = HashMap::new();
+        let mut loose_channels: HashMap<PeerId, PeerSender> = HashMap::new();
 
         let broker_loop = task::spawn(async move {
             debug!("broker loop");

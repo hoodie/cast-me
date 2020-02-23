@@ -11,8 +11,8 @@ futures = "0.3"
 log = "0.4"
 env_logger = "0.7"
 color-backtrace = "0.3"
-serde_json = "1.0.48"
-human-hash = "0.3.0"
+serde_json = "1.0"
+human-hash = { git = "https://github.com/hoodie/human-hash-rs" }
 
 [dependencies.serde]
 version = "1.0"

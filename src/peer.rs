@@ -9,12 +9,36 @@ use tokio::sync::mpsc;
 use uuid::Uuid;
 use warp::ws::{Message, WebSocket};
 
+use std::fmt;
+
 use crate::{broker::BrokerMsg, Receiver, Sender};
 
 type WsSender = SplitSink<WebSocket, Message>;
 type WsReceiver = SplitStream<WebSocket>;
 
 pub type PeerSender = mpsc::UnboundedSender<PeerMessage>;
+
+#[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct PeerId(String);
+
+impl PeerId {
+    fn new() -> PeerId {
+        PeerId(human_hash::humanize(&Uuid::new_v4(), 2))
+    }
+}
+
+impl Clone for PeerId {
+    fn clone(&self) -> PeerId {
+        PeerId(self.0.clone())
+    }
+}
+
+
+impl fmt::Display for PeerId{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 // P2P / Broker -> Peer Messages
 #[derive(Debug)]
@@ -34,12 +58,12 @@ impl From<&str> for PeerMessage {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 enum Protocol {
-    Welcome(Uuid),
-    Connect(Uuid),
+    Welcome(PeerId),
+    Connect(PeerId),
 }
 
 pub struct Peer {
-    pub my_uuid: Uuid,
+    pub my_id: PeerId,
     pub correspondent: Option<PeerSender>,
     pub broker_addr: Sender<BrokerMsg>,
     pub peer_sender: Sender<PeerMessage>,
@@ -50,13 +74,13 @@ pub struct Peer {
 
 impl Peer {
     pub fn new(ws: WebSocket, broker_addr: Sender<BrokerMsg>) -> Self {
-        let my_uuid = Uuid::new_v4();
+        let my_id = PeerId::new();
         let (peer_sender, peer_receiver) = mpsc::unbounded_channel::<PeerMessage>();
 
         let (ws_sender, ws_receiver) = ws.split();
 
         Peer {
-            my_uuid,
+            my_id,
             correspondent: None,
             broker_addr,
             peer_receiver,
@@ -68,20 +92,20 @@ impl Peer {
 
     pub fn register_at_broker(&mut self) {
         self.send_to_broker(BrokerMsg::Register {
-            uuid: self.my_uuid,
+            uuid: self.my_id.clone(),
             peer: self.peer_sender.clone(),
         });
     }
 
     pub async fn send_welcome(&mut self) {
-        self.send_to_remote(Protocol::Welcome(self.my_uuid)).await;
+        self.send_to_remote(Protocol::Welcome(self.my_id.clone())).await;
     }
 
     pub async fn start(&mut self) {
         loop {
             tokio::select! {
                 Some(received) = self.ws_receiver.next() => {
-                    debug!("received on ws {:?}", received);
+                    trace!("received on ws {:?}", received);
                     if let Ok(raw_content) = received {
 
                         match (&mut self.correspondent, raw_content.to_str()) {
@@ -89,7 +113,7 @@ impl Peer {
                                 if let Ok(Protocol::Connect(uuid)) = raw_content.to_str().and_then(|s|serde_json::from_str(&s).map_err(|_|())) {
                                     debug!("connecting to {}", uuid);
                                     self.send_to_broker(BrokerMsg::Connect {
-                                            from: self.my_uuid,
+                                            from: self.my_id.clone(),
                                             to: uuid,
                                         });
                                 } else {
@@ -106,7 +130,7 @@ impl Peer {
 
                         }
                     } else {
-                        debug!("unhandled message: {:?}", received);
+                        warn!("unhandled message: {:?}", received);
                         break
                     }
                 }
@@ -116,7 +140,7 @@ impl Peer {
             }
         }
 
-        info!("peer quit {}", self.my_uuid);
+        info!("peer quit {}", self.my_id);
     }
 
     async fn handle_broker_msg(
@@ -124,10 +148,10 @@ impl Peer {
         received: PeerMessage,
         socket_tx: &mut SplitSink<WebSocket, Message>,
     ) {
-        debug!("peer received from broker {:?}", received);
         match (received, &mut correspondent) {
             // from the correspondent, send on socket
             (PeerMessage::P2P(ref content), _) => {
+                trace!("peer received P2P");
                 if let Err(e) = socket_tx.send(Message::text(content)).await {
                     warn!("failed to send on websocket {:?}", e);
                 }
