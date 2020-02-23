@@ -50,7 +50,7 @@ async fn main() {
 
     let routes = test.or(app).or(channel).or(redirect_to_app);
 
-    let listen_on = std::net::SocketAddr::from(([127, 0, 0, 1], 3030));
+    let listen_on = std::net::SocketAddr::from(([0, 0, 0, 0], 3030));
     info!("listening on {}", listen_on);
 
     tokio::select! {

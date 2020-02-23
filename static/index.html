@@ -27,7 +27,9 @@
 
     window['CONNECTION'] = socket;
     console.log(window['CONNECTION'])
+
     window['talkTo'] = uuid => socket.send(JSON.stringify({ connect: uuid }))
+    window['send'] = anything => socket.send(JSON.stringify(anything))
 
 </script>
 
