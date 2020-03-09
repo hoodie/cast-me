@@ -1,5 +1,5 @@
 <script>
-  import { peerId, history, socket, connected } from "./socketStore.js";
+  import { peerId, history, socket, connected } from "./network.js";
 
   let connectionCode;
 

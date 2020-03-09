@@ -1,7 +1,6 @@
 <script>
   import Chat from "./Chat.svelte";
   import Connect from "./Connect.svelte";
-  import { connected } from "./socketStore.js";
 </script>
 
 <style>

@@ -1,5 +1,5 @@
 <script>
-  import { peerId, history, socket } from "./socketStore.js";
+  import { peerId, history, socket } from "./network.js";
 
   let currentMessage = "hi";
   const handleSubmit = ({ key }) => key === "Enter" && submit();
