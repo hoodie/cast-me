@@ -190,7 +190,7 @@ impl Peer {
 
             (PeerMessage::Connected(other_peer, other_peer_id), None) => {
                 self.correspondent.replace(other_peer);
-                let hail = Protocol::Connected(other_peer_id.into());
+                let hail = Protocol::Connected(other_peer_id);
                 self.send_to_remote(hail).await;
                 info!("set a correspondent");
             }
