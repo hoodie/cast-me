@@ -8,9 +8,17 @@ const not = (f) => (x) => !f(x);
 
 const isProtocolMsg = (message) =>
     (typeof message === 'object'
-        && ('welcome' in message || 'connect' in message || 'connected' in message));
+        && ('welcome' in message || 'connect' in message || 'connected' in message|| 'bye' in message));
 
-// your ID
+// received bye
+export const byeReceived =
+    socket.pipe(
+        filter(({ bye }) => !!bye),
+        pluck('bye'),
+        first()
+    );
+
+// your peer's ID
 export const connectReceived =
     socket.pipe(
         filter(({ connected }) => !!connected),

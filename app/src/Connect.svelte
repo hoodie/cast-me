@@ -1,6 +1,6 @@
 <script>
   import { ownPeerId, sendAsRaw } from "./network.js";
-  import { oppositePeerId } from './stores';
+  import { oppositePeerId, oppositePeerLeftReason } from './stores';
 
   let connectionCode;
 
@@ -25,7 +25,11 @@ h3 > code {
 
 <section>
   {#if $oppositePeerId}
-    <h6>✅ connected </h6>
+    {#if $oppositePeerLeftReason}
+      <h6>🔴 {$oppositePeerLeftReason} </h6>
+      {:else}
+      <h6>✅ connected </h6>
+    {/if}
   {:else}
   <h3> peerId: <code>{$ownPeerId}</code> </h3>
     <code> ⏳ not connected </code>

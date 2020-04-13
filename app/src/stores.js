@@ -1,16 +1,19 @@
-import { writable } from 'svelte/store'
-import { connectReceived, payloadMsg } from './network'
+import { writable, derived } from 'svelte/store'
+import { connectReceived, byeReceived, payloadMsg } from './network'
 
-export const oppositePeerId = (() => {
+export const createStore = (name) => {
     const { subscribe, update } = writable(false);
     return {
-        set: (name) => update(current => {
-            console.debug("updating 'connected' to", name);
-            return name
+        set: (value) => update(_current => {
+            console.debug(`updating '${name}' to`, value);
+            return value 
         }),
         subscribe
     }
-})()
+};
+
+export const oppositePeerId = createStore('connected');
+export const oppositePeerLeftReason = createStore('oppositePeerLeftReason');
 
 export const messageHistory = (() => {
     const { subscribe, update } = writable([]);
@@ -20,8 +23,12 @@ export const messageHistory = (() => {
     }
 })()
 
-
 connectReceived.subscribe(correspondent => {
     console.debug('connected to', correspondent)
     oppositePeerId.set(correspondent);
+});
+
+byeReceived.subscribe(({ reason })=> {
+    console.debug('peer left', reason)
+    oppositePeerLeftReason.set(reason);
 });

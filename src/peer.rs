@@ -16,7 +16,8 @@ use crate::{broker::BrokerMsg, Receiver, Sender};
 type WsSender = SplitSink<WebSocket, Message>;
 type WsReceiver = SplitStream<WebSocket>;
 
-pub type PeerSender = mpsc::UnboundedSender<PeerMessage>;
+pub type PeerSender = Sender<PeerMessage>;
+pub type PeerReceiver = Receiver<PeerMessage>;
 
 #[derive(PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PeerId(String);
@@ -45,11 +46,12 @@ impl fmt::Debug for PeerId {
     }
 }
 
-// P2P / Broker -> Peer Messages
+// P2P: Broker -> Peer Messages
 #[derive(Debug)]
 pub enum PeerMessage {
     P2P(String),
     Connected(PeerSender, PeerId),
+    Disconnected,
     Ping,
     Close,
 }
@@ -78,13 +80,31 @@ impl fmt::Display for Protocol {
     }
 }
 
+#[derive(Debug)]
+pub enum SendError {
+    NoCorrespondant,
+    FailedToSendOnWebsocket(mpsc::error::SendError<PeerMessage>),
+}
+
 pub struct Peer {
     pub my_id: PeerId,
+
+    /// sender to other participating peer
     pub correspondent: Option<PeerSender>,
+
+    /// sender to broker
     pub broker_addr: Sender<BrokerMsg>,
-    pub peer_sender: Sender<PeerMessage>,
-    pub peer_receiver: Receiver<PeerMessage>,
+
+    /// sender to this peer
+    pub peer_sender: PeerSender,
+
+    /// receiver for messages from correspondent
+    pub peer_receiver: PeerReceiver,
+
+    /// sender to websocket
     pub ws_sender: WsSender,
+
+    /// receiver on websocket
     pub ws_receiver: WsReceiver,
     retire: bool,
 }
@@ -115,21 +135,25 @@ impl Peer {
         });
     }
 
-    pub async fn send_welcome(&mut self) {
-        self.send_to_remote(Protocol::Welcome(self.my_id.clone()))
-            .await;
-    }
-
     pub async fn start(&mut self) {
         loop {
             tokio::select! {
                 Some(received) = self.ws_receiver.next() => {
                     trace!("received on ws {:?}", received);
-                    if let Ok(raw_content) = received {
+                    if let Ok(ws_message) = received {
 
-                        match (&mut self.correspondent, raw_content.to_str()) {
+                        if ws_message.is_close() { // TODO: I wish I could just match on the message itself
+                            self.retire = true;
+                            debug!("{:?} websocket disconnected", self.my_id);
+                            if let Err(error) = self.send_to_correspondent(PeerMessage::Disconnected).await {
+                                debug!("{:?}", error);
+                            }
+                            break
+                        }
+
+                        match (&mut self.correspondent, ws_message.to_str()) {
                             (None, Ok(_)) => {
-                                if let Ok(Protocol::Connect(uuid)) = raw_content.to_str().and_then(|s|serde_json::from_str(&s).map_err(|_|())) {
+                                if let Ok(Protocol::Connect(uuid)) = ws_message.to_str().and_then(|s|serde_json::from_str(&s).map_err(|_|())) {
                                     debug!("connecting to {}", uuid);
                                     self.send_to_broker(BrokerMsg::Connect {
                                             from: self.my_id.clone(),
@@ -166,6 +190,23 @@ impl Peer {
         info!("peer quit {}", self.my_id);
     }
 
+    pub async fn send_welcome(&mut self) {
+        self.send_to_remote(Protocol::Welcome(self.my_id.clone()))
+            .await;
+    }
+
+    async fn send_to_correspondent(&mut self, msg: PeerMessage) -> Result<(), SendError> {
+        if let Some(ref mut correspondent) = self.correspondent {
+            if let Err(e) = correspondent.send(msg) {
+                Err(SendError::FailedToSendOnWebsocket(e))
+            } else {
+                Ok(())
+            }
+        } else {
+            Err(SendError::NoCorrespondant)
+        }
+    }
+
     async fn send_to_remote(&mut self, msg: impl ToString) {
         let payload = msg.to_string();
         if let Err(e) = self.ws_sender.send(Message::text(&payload)).await {
@@ -198,6 +239,14 @@ impl Peer {
                 self.retire = true;
                 self.send_to_remote(Protocol::Bye {
                     reason: String::from("kicked"),
+                })
+                .await;
+            }
+            (PeerMessage::Disconnected, _) => {
+                debug!("{:?} peer left, retiring", self.my_id);
+                self.retire = true;
+                self.send_to_remote(Protocol::Bye {
+                    reason: String::from("disconnected"),
                 })
                 .await;
             }
