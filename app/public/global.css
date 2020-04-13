@@ -64,3 +64,18 @@ button:not(:disabled):active {
 button:focus {
 	border-color: #666;
 }
+
+h4, h5, h6 {
+	margin: 0;
+}
+
+section {
+	text-align: left;
+	
+	display: block;
+	padding: 0.5em;
+	margin: 0 1em 1em 0;
+	border: 1px solid #aaa;
+	border-radius: 2px;
+	box-shadow: 3px 3px 8px rgba(0, 0, 0, 0.1);
+}

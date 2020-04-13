@@ -1,28 +1,16 @@
-
-import { writable } from 'svelte/store'
 import { webSocket } from "rxjs/webSocket";
 import { pluck, filter, map, first } from "rxjs/operators";
 
-export const socket = webSocket(`wss://${location.host}/ws`);
+const socket = webSocket(`wss://${location.host}/ws`);
 socket.next("subscribed")
 
-export const connected = (() => {
-    const { subscribe, update } = writable(false);
-    return {
-        set: (name) => update(current => {
-            console.debug("updating 'connected' to", name);
-            return name
-        }),
-        subscribe
-    }
-})()
+const not = (f) => (x) => !f(x);
 
-export const peerId =
-    socket.pipe(
-        filter(({ welcome }) => !!welcome),
-        map(({ welcome }) => welcome)
-    )
+const isProtocolMsg = (message) =>
+    (typeof message === 'object'
+        && ('welcome' in message || 'connect' in message || 'connected' in message));
 
+// your ID
 export const connectReceived =
     socket.pipe(
         filter(({ connected }) => !!connected),
@@ -30,39 +18,28 @@ export const connectReceived =
         first()
     );
 
-connectReceived.subscribe(correspondent => {
-    console.debug('connected to', correspondent)
-    connected.set(correspondent);
-});
+// your ID
+export const ownPeerId =
+    socket.pipe(
+        filter(({ welcome }) => !!welcome),
+        map(({ welcome }) => welcome)
+    )
 
 
-const isProtocolMsg = (x) =>
-    (typeof x === 'object'
-        && ('welcome' in x || 'connect' in x || 'connected' in x));
+export const sendAsRaw  = (payload) => socket.next(payload)
 
-const not = (f) => (x) => !f(x);
-
+export const payloadMsg = socket
+    .pipe(filter(not(isProtocolMsg)));
 
 export const offers = socket.pipe(filter(message => typeof message === 'object' && message.type === 'offer'), pluck('payload'));
 export const answers = socket.pipe(filter(message => typeof message === 'object' && message.type === 'answers', pluck('payload')));
 export const candidates = socket.pipe(filter(message => typeof message === 'object' && message.type === ' candidates', pluck('payload')));
 
-const sendAsType = (type) => (payload) => socket.next((type, payload))
+export const sendAsType = (type) => (payload) => socket.next((type, payload))
 export const sendAsOffer = sendAsType('offer');
 export const sendAsAnswer = sendAsType('answer');
 export const sendAsCandidate = sendAsType('candidate');
 
-export const payloadMsg = socket
-    .pipe(filter(not(isProtocolMsg)));
-
-export const history = (() => {
-    const { subscribe, update } = writable([]);
-    payloadMsg.subscribe(msg => update(history => [...history.slice(-100), msg]))
-    return {
-        subscribe
-    }
-})()
-
 window['API'] = {
-    sendAsOffer, sendAsAnswer, sendAsCandidate, offers, answers, candidates
+    sendAsOffer, sendAsAnswer, sendAsCandidate, offers, answers, candidates, sendAsRaw
 }

@@ -1,5 +1,6 @@
 <script>
-  import { peerId, history, socket, connected } from "./network.js";
+  import { ownPeerId, sendAsRaw } from "./network.js";
+  import { oppositePeerId } from './stores';
 
   let connectionCode;
 
@@ -8,7 +9,7 @@
   const connect = () => {
     if (!!connectionCode) {
 
-      socket.next({ connect: connectionCode.split(' ').join('-') });
+      sendAsRaw({ connect: connectionCode.split(' ').join('-') });
       connectionCode = "";
     } else {
       console.warn("not connecting");
@@ -16,19 +17,27 @@
   };
 </script>
 
-<h2>{$peerId}</h2>
-{#if $connected}
-  <h5>connected to {$connected}</h5>
-{:else}
-  not connected
-  <label>
-    <input
-      on:submit={connect}
-      on:keydown={handleSubmit}
-      bind:value={connectionCode}
-      placeholder="connect to"
-      type="text" />
+<style>
+h3 > code {
+  font-size: 2.6em
+}
+</style>
 
-  </label>
-  {connectionCode}
-{/if}
+<section>
+  {#if $oppositePeerId}
+    <h6>✅ connected </h6>
+  {:else}
+  <h3> peerId: <code>{$ownPeerId}</code> </h3>
+    <code> ⏳ not connected </code>
+    <label>
+      <input
+        on:submit={connect}
+        on:keydown={handleSubmit}
+        bind:value={connectionCode}
+        placeholder="enter opposite peerId"
+        type="text" />
+
+    </label>
+    {connectionCode}
+  {/if}
+</section>
