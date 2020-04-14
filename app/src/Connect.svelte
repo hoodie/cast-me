@@ -42,6 +42,5 @@ h3 > code {
         type="text" />
 
     </label>
-    {connectionCode}
   {/if}
 </section>

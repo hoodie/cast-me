@@ -40,10 +40,10 @@ export const payloadMsg = socket
     .pipe(filter(not(isProtocolMsg)));
 
 export const offers = socket.pipe(filter(message => typeof message === 'object' && message.type === 'offer'), pluck('payload'));
-export const answers = socket.pipe(filter(message => typeof message === 'object' && message.type === 'answers', pluck('payload')));
+export const answers = socket.pipe(filter(message => typeof message === 'object' && message.type === 'answer'), pluck('payload'));
 export const candidates = socket.pipe(filter(message => typeof message === 'object' && message.type === ' candidates', pluck('payload')));
 
-export const sendAsType = (type) => (payload) => socket.next((type, payload))
+export const sendAsType = (type) => (payload) => socket.next({type, payload})
 export const sendAsOffer = sendAsType('offer');
 export const sendAsAnswer = sendAsType('answer');
 export const sendAsCandidate = sendAsType('candidate');

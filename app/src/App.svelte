@@ -1,6 +1,7 @@
 <script>
   import Chat from "./Chat.svelte";
   import Connect from "./Connect.svelte";
+  import Share from "./Share.svelte";
 </script>
 
 <style>
@@ -21,4 +22,5 @@
 <main>
   <Connect />
   <Chat />
+  <Share />
 </main>

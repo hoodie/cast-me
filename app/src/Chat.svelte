@@ -24,7 +24,11 @@
       <h6>chat</h6>
       <ul>
         {#each $messageHistory as message, i (i)}
-          <li>{message}</li>
+          <li>
+          {#if typeof message === 'string'}
+            {message}
+          {/if}
+          </li>
         {/each}
       </ul>
     </label>

@@ -29,7 +29,7 @@ async fn peer_connected(ws: WebSocket, broker: Broker) {
 async fn main() {
     color_backtrace::install();
     if env::var(LOG_VAR).is_err() {
-        env::set_var(LOG_VAR, "cast_me=trace,warp=info");
+        env::set_var(LOG_VAR, "cast_me=info,warp=info");
     }
     env_logger::init_from_env(Env::new().filter(LOG_VAR));
 
