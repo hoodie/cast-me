@@ -53,10 +53,8 @@ impl Broker {
             }
         }
 
-        if let (true, Some(peer_b)) = (
-            loose_channels.contains_key(from),
-            loose_channels.remove(to),
-        ) {
+        if let (true, Some(peer_b)) = (loose_channels.contains_key(from), loose_channels.remove(to))
+        {
             let peer_a = loose_channels.remove(from).unwrap();
             log::info!("connecting peers {} and {}", from, to);
             match (
