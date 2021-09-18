@@ -33,9 +33,9 @@ impl Broker {
         peer: PeerSender,
     ) {
         if let Some(_peer) = loose_channels.insert(uuid.clone(), peer) {
-            log::warn!("uuid collision {}", uuid);
+            tracing::warn!("uuid collision {}", uuid);
         }
-        log::info!(
+        tracing::info!(
             "registered peer under {} {:#?}",
             uuid,
             loose_channels.keys()
@@ -47,7 +47,7 @@ impl Broker {
         if from == to {
             if let Some(bad_guy) = loose_channels.remove(from) {
                 if let Err(e) = bad_guy.send(PeerMessage::Close) {
-                    log::warn!("failed to send close to {} {}", from, e);
+                    tracing::warn!("failed to send close to {} {}", from, e);
                 }
                 return;
             }
@@ -56,14 +56,14 @@ impl Broker {
         if let (true, Some(peer_b)) = (loose_channels.contains_key(from), loose_channels.remove(to))
         {
             let peer_a = loose_channels.remove(from).unwrap();
-            log::info!("connecting peers {} and {}", from, to);
+            tracing::info!("connecting peers {} and {}", from, to);
             match (
                 peer_a.send(PeerMessage::Connected(peer_b.clone(), to.clone())),
                 peer_b.send(PeerMessage::Connected(peer_a, from.clone())),
             ) {
-                (Err(err), _) => log::error!("failed to send b to a, reason: {}", err),
-                (_, Err(err)) => log::error!("failed to send a to b, reason: {}", err),
-                _ => log::info!(
+                (Err(err), _) => tracing::error!("failed to send b to a, reason: {}", err),
+                (_, Err(err)) => tracing::error!("failed to send a to b, reason: {}", err),
+                _ => tracing::info!(
                     "connected {} with {} | inventory={:#?}",
                     from,
                     to,
@@ -71,14 +71,14 @@ impl Broker {
                 ),
             }
         } else {
-            log::warn!("no uuid match {} {}", from, to);
+            tracing::warn!("no uuid match {} {}", from, to);
         }
     }
 
     fn clean_out_dead_peers(loose_channels: &mut HashMap<PeerId, PeerSender>) {
         loose_channels.retain(|uuid, peer| {
             if let Err(e) = peer.send(PeerMessage::Ping) {
-                log::debug!("removing peer {}, {}", uuid, e);
+                tracing::debug!("removing peer {}, {}", uuid, e);
                 return false;
             };
             true
@@ -92,9 +92,9 @@ impl Broker {
         let mut loose_channels: HashMap<PeerId, PeerSender> = HashMap::new();
 
         let broker_loop = task::spawn(async move {
-            log::debug!("broker loop");
+            tracing::debug!("broker loop");
             while let Some(res) = rx.recv().await {
-                log::debug!("broker received {:?}", res);
+                tracing::debug!("broker received {:?}", res);
                 match res {
                     BrokerMsg::Register { uuid, peer } => {
                         Self::clean_out_dead_peers(&mut loose_channels);

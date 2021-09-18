@@ -1,7 +1,5 @@
-use std::env;
-
-use env_logger::Env;
 use tokio::sync::mpsc;
+use tracing_subscriber::EnvFilter;
 use warp::{http::Uri, ws::WebSocket, Filter};
 
 mod broker;
@@ -9,14 +7,12 @@ mod peer;
 
 use crate::{broker::Broker, peer::Peer};
 
-const LOG_VAR: &str = "CAST_ME_LOG";
-
 type Sender<T> = mpsc::UnboundedSender<T>;
 type Receiver<T> = mpsc::UnboundedReceiver<T>;
 
 #[allow(clippy::cognitive_complexity)]
 async fn peer_connected(ws: WebSocket, broker: Broker) {
-    log::debug!("user connected{:#?}", ws);
+    tracing::debug!("user connected{:#?}", ws);
 
     let mut peer = Peer::new(ws, broker.addr());
     peer.register_at_broker();
@@ -25,12 +21,18 @@ async fn peer_connected(ws: WebSocket, broker: Broker) {
 }
 
 #[tokio::main]
+#[tracing::instrument]
 async fn main() {
     color_backtrace::install();
-    if env::var(LOG_VAR).is_err() {
-        env::set_var(LOG_VAR, "cast_me=info,warp=info");
-    }
-    env_logger::init_from_env(Env::new().filter(LOG_VAR));
+
+    tracing_subscriber::fmt()
+        .pretty()
+        .with_thread_names(true)
+        // enable everything
+        .with_max_level(tracing::Level::TRACE)
+        .with_env_filter(EnvFilter::from_default_env())
+        // sets this to be the default, global collector for this application.
+        .init();
 
     let (broker, broker_loop) = Broker::create();
     let broker = warp::any().map(move || broker.clone());
@@ -50,7 +52,7 @@ async fn main() {
     let routes = test.or(app).or(channel).or(redirect_to_app);
 
     let listen_on = std::net::SocketAddr::from(([0, 0, 0, 0], 3030));
-    log::info!("listening on {}", listen_on);
+    tracing::info!("listening on {}", listen_on);
 
     tokio::select! {
         _ = broker_loop => {},

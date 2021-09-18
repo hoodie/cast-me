@@ -85,6 +85,7 @@ pub enum SendError {
     FailedToSendOnWebsocket(mpsc::error::SendError<PeerMessage>),
 }
 
+#[derive(Debug)]
 pub struct Peer {
     pub my_id: PeerId,
 
@@ -134,18 +135,19 @@ impl Peer {
         });
     }
 
+    #[tracing::instrument]
     pub async fn start(&mut self) {
         loop {
             tokio::select! {
                 Some(received) = self.ws_receiver.next() => {
-                    log::trace!("received on ws {:?}", received);
+                    tracing::trace!("received on ws {:?}", received);
                     if let Ok(ws_message) = received {
 
                         if ws_message.is_close() { // TODO: I wish I could just match on the message itself
                             self.retire = true;
-                            log::debug!("{:?} websocket disconnected", self.my_id);
+                            tracing::debug!("{:?} websocket disconnected", self.my_id);
                             if let Err(error) = self.send_to_correspondent(PeerMessage::Disconnected).await {
-                                log::debug!("{:?}", error);
+                                tracing::debug!("{:?}", error);
                             }
                             break
                         }
@@ -153,18 +155,18 @@ impl Peer {
                         match (&mut self.correspondent, ws_message.to_str()) {
                             (None, Ok(_)) => {
                                 if let Ok(Protocol::Connect(uuid)) = ws_message.to_str().and_then(|s|serde_json::from_str(s).map_err(|_|())) {
-                                    log::debug!("connecting to {}", uuid);
+                                    tracing::debug!("connecting to {}", uuid);
                                     self.send_to_broker(BrokerMsg::Connect {
                                             from: self.my_id.clone(),
                                             to: uuid,
                                         });
                                 } else {
-                                    log::trace!("no corresponded, ignoring");
+                                    tracing::trace!("no corresponded, ignoring");
                                 }
                             }
                             (Some(ref mut correspondent), Ok(content)) => {
                                 if let Err(e) = correspondent.send(PeerMessage::P2P(content.into())) { // TODO: redundant repacking
-                                    log::debug!("failed to forward {}", e);
+                                    tracing::debug!("failed to forward {}", e);
                                     break;
                                 }
                             }
@@ -172,7 +174,7 @@ impl Peer {
 
                         }
                     } else {
-                        log::warn!("unhandled message: {:?}", received);
+                        tracing::warn!("unhandled message: {:?}", received);
                         break
                     }
                 }
@@ -186,14 +188,16 @@ impl Peer {
             }
         }
 
-        log::info!("peer quit {}", self.my_id);
+        tracing::info!("peer quit {}", self.my_id);
     }
 
+    #[tracing::instrument]
     pub async fn send_welcome(&mut self) {
-        self.send_to_remote(Protocol::Welcome(self.my_id.clone()))
+        self.send_to_remote(&Protocol::Welcome(self.my_id.clone()).to_string())
             .await;
     }
 
+    #[tracing::instrument]
     async fn send_to_correspondent(&mut self, msg: PeerMessage) -> Result<(), SendError> {
         if let Some(ref mut correspondent) = self.correspondent {
             if let Err(e) = correspondent.send(msg) {
@@ -206,13 +210,15 @@ impl Peer {
         }
     }
 
-    async fn send_to_remote(&mut self, msg: impl ToString) {
+    #[tracing::instrument]
+    async fn send_to_remote(&mut self, msg: &str) {
         let payload = msg.to_string();
         if let Err(e) = self.ws_sender.send(Message::text(&payload)).await {
-            log::warn!("failed to send message on websocket {} {}", payload, e);
+            tracing::warn!("failed to send message on websocket {} {}", payload, e);
         }
     }
 
+    #[tracing::instrument]
     async fn handle_broker_msg(
         // mut correspondent: &mut Option<PeerSender>,
         &mut self,
@@ -222,31 +228,37 @@ impl Peer {
         match (received, &mut self.correspondent) {
             // from the correspondent, send on socket
             (PeerMessage::P2P(ref content), _) => {
-                log::trace!("peer received P2P");
+                tracing::trace!("peer received P2P");
                 self.send_to_remote(content).await;
             }
 
-            (PeerMessage::Connected(..), Some(_)) => log::warn!("already have a correspondent"),
+            (PeerMessage::Connected(..), Some(_)) => tracing::warn!("already have a correspondent"),
 
             (PeerMessage::Connected(other_peer, other_peer_id), None) => {
                 self.correspondent.replace(other_peer);
                 let hail = Protocol::Connected(other_peer_id);
-                self.send_to_remote(hail).await;
-                log::info!("set a correspondent");
+                self.send_to_remote(&hail.to_string()).await;
+                tracing::info!("set a correspondent");
             }
             (PeerMessage::Close, _) => {
                 self.retire = true;
-                self.send_to_remote(Protocol::Bye {
-                    reason: String::from("kicked"),
-                })
+                self.send_to_remote(
+                    &Protocol::Bye {
+                        reason: String::from("kicked"),
+                    }
+                    .to_string(),
+                )
                 .await;
             }
             (PeerMessage::Disconnected, _) => {
-                log::debug!("{:?} peer left, retiring", self.my_id);
+                tracing::debug!("{:?} peer left, retiring", self.my_id);
                 self.retire = true;
-                self.send_to_remote(Protocol::Bye {
-                    reason: String::from("disconnected"),
-                })
+                self.send_to_remote(
+                    &Protocol::Bye {
+                        reason: String::from("disconnected"),
+                    }
+                    .to_string(),
+                )
                 .await;
             }
             (PeerMessage::Ping, _) => {
