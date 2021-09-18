@@ -1,7 +1,6 @@
 use std::env;
 
 use env_logger::Env;
-use log::*;
 use tokio::sync::mpsc;
 use warp::{http::Uri, ws::WebSocket, Filter};
 
@@ -17,7 +16,7 @@ type Receiver<T> = mpsc::UnboundedReceiver<T>;
 
 #[allow(clippy::cognitive_complexity)]
 async fn peer_connected(ws: WebSocket, broker: Broker) {
-    debug!("user connected{:#?}", ws);
+    log::debug!("user connected{:#?}", ws);
 
     let mut peer = Peer::new(ws, broker.addr());
     peer.register_at_broker();
@@ -51,7 +50,7 @@ async fn main() {
     let routes = test.or(app).or(channel).or(redirect_to_app);
 
     let listen_on = std::net::SocketAddr::from(([0, 0, 0, 0], 3030));
-    info!("listening on {}", listen_on);
+    log::info!("listening on {}", listen_on);
 
     tokio::select! {
         _ = broker_loop => {},

@@ -3,7 +3,6 @@ use futures::{
     stream::{SplitSink, SplitStream},
     StreamExt,
 };
-use log::*;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use uuid::Uuid;
@@ -139,33 +138,33 @@ impl Peer {
         loop {
             tokio::select! {
                 Some(received) = self.ws_receiver.next() => {
-                    trace!("received on ws {:?}", received);
+                    log::trace!("received on ws {:?}", received);
                     if let Ok(ws_message) = received {
 
                         if ws_message.is_close() { // TODO: I wish I could just match on the message itself
                             self.retire = true;
-                            debug!("{:?} websocket disconnected", self.my_id);
+                            log::debug!("{:?} websocket disconnected", self.my_id);
                             if let Err(error) = self.send_to_correspondent(PeerMessage::Disconnected).await {
-                                debug!("{:?}", error);
+                                log::debug!("{:?}", error);
                             }
                             break
                         }
 
                         match (&mut self.correspondent, ws_message.to_str()) {
                             (None, Ok(_)) => {
-                                if let Ok(Protocol::Connect(uuid)) = ws_message.to_str().and_then(|s|serde_json::from_str(&s).map_err(|_|())) {
-                                    debug!("connecting to {}", uuid);
+                                if let Ok(Protocol::Connect(uuid)) = ws_message.to_str().and_then(|s|serde_json::from_str(s).map_err(|_|())) {
+                                    log::debug!("connecting to {}", uuid);
                                     self.send_to_broker(BrokerMsg::Connect {
                                             from: self.my_id.clone(),
                                             to: uuid,
                                         });
                                 } else {
-                                    trace!("no corresponded, ignoring");
+                                    log::trace!("no corresponded, ignoring");
                                 }
                             }
                             (Some(ref mut correspondent), Ok(content)) => {
                                 if let Err(e) = correspondent.send(PeerMessage::P2P(content.into())) { // TODO: redundant repacking
-                                    debug!("failed to forward {}", e);
+                                    log::debug!("failed to forward {}", e);
                                     break;
                                 }
                             }
@@ -173,7 +172,7 @@ impl Peer {
 
                         }
                     } else {
-                        warn!("unhandled message: {:?}", received);
+                        log::warn!("unhandled message: {:?}", received);
                         break
                     }
                 }
@@ -187,7 +186,7 @@ impl Peer {
             }
         }
 
-        info!("peer quit {}", self.my_id);
+        log::info!("peer quit {}", self.my_id);
     }
 
     pub async fn send_welcome(&mut self) {
@@ -210,7 +209,7 @@ impl Peer {
     async fn send_to_remote(&mut self, msg: impl ToString) {
         let payload = msg.to_string();
         if let Err(e) = self.ws_sender.send(Message::text(&payload)).await {
-            warn!("failed to send message on websocket {} {}", payload, e);
+            log::warn!("failed to send message on websocket {} {}", payload, e);
         }
     }
 
@@ -223,17 +222,17 @@ impl Peer {
         match (received, &mut self.correspondent) {
             // from the correspondent, send on socket
             (PeerMessage::P2P(ref content), _) => {
-                trace!("peer received P2P");
+                log::trace!("peer received P2P");
                 self.send_to_remote(content).await;
             }
 
-            (PeerMessage::Connected(..), Some(_)) => warn!("already have a correspondent"),
+            (PeerMessage::Connected(..), Some(_)) => log::warn!("already have a correspondent"),
 
             (PeerMessage::Connected(other_peer, other_peer_id), None) => {
                 self.correspondent.replace(other_peer);
                 let hail = Protocol::Connected(other_peer_id);
                 self.send_to_remote(hail).await;
-                info!("set a correspondent");
+                log::info!("set a correspondent");
             }
             (PeerMessage::Close, _) => {
                 self.retire = true;
@@ -243,7 +242,7 @@ impl Peer {
                 .await;
             }
             (PeerMessage::Disconnected, _) => {
-                debug!("{:?} peer left, retiring", self.my_id);
+                log::debug!("{:?} peer left, retiring", self.my_id);
                 self.retire = true;
                 self.send_to_remote(Protocol::Bye {
                     reason: String::from("disconnected"),
