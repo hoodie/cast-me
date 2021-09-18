@@ -177,7 +177,7 @@ impl Peer {
                         break
                     }
                 }
-                Some(received) = self.peer_receiver.next() => {
+                Some(received) = self.peer_receiver.recv() => {
                     // Peer::handle_broker_msg(&mut self.correspondent, received, &mut self.ws_sender).await;
                     self.handle_broker_msg(received).await;
                     if self.retire {

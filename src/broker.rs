@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use futures::StreamExt;
 use log::*;
 
 use tokio::{
@@ -98,7 +97,7 @@ impl Broker {
 
         let broker_loop = task::spawn(async move {
             debug!("broker loop");
-            while let Some(res) = rx.next().await {
+            while let Some(res) = rx.recv().await {
                 debug!("broker received {:?}", res);
                 match res {
                     BrokerMsg::Register { uuid, peer } => {
