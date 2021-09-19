@@ -22,27 +22,44 @@
   }
 </style>
 
-<section>
-  {#if $oppositePeerId}
+{#if $oppositePeerId}
+  <section>
     {#if $oppositePeerLeftReason}
       <h6>🔴 {$oppositePeerLeftReason}</h6>
     {:else}
       <h6>✅ connected</h6>
     {/if}
-  {:else}
-    <h3>
-      peerId:
-      <code>{$ownPeerId}</code>
-    </h3>
-    <code>⏳ not connected</code>
-    <label>
-      <input
-        on:submit={connect}
-        on:keydown={handleSubmit}
-        bind:value={connectionCode}
-        placeholder="enter opposite peerId"
-        type="text" />
+  </section>
+{:else}
+  <section>
+    <h6>⏳ not yet connected</h6>
+  </section>
+  <section>
+    <h4>connect to other peer</h4>
 
-    </label>
-  {/if}
-</section>
+    <table>
+      <tr>
+        <td>
+          <input type="text" value={$ownPeerId} readonly />
+        </td>
+        <td>
+
+          <input
+            on:submit={connect}
+            on:keydown={handleSubmit}
+            bind:value={connectionCode}
+            placeholder="enter opposite peerId"
+            type="text" />
+
+        </td>
+      </tr>
+      <tr>
+        <td />
+        <td>
+          <strong>↑ enter their code here </strong>
+        </td>
+      </tr>
+    </table>
+
+  </section>
+{/if}

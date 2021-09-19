@@ -1,12 +1,17 @@
-<script>
+<script lang="ts">
   import { onMount } from "svelte";
   import { initPC } from "./peering";
+  import {
+    oppositePeerId,
+    oppositePeerLeftReason,
+    messageHistory
+  } from "./stores";
 
   $: polite = false;
   $: pc = undefined;
   $: transceiver = undefined;
 
-  let videoTag;
+  let videoTag; //: HTMLVideoElement;
 
   function createPC() {
     pc = initPC(polite);
@@ -41,29 +46,34 @@
 </script>
 
 <section>
-  <h5>sharing</h5>
-  <aside>
-    {pc ? '✅' : '🔴'}
-    <label for="polite">
-      polite
-      <input
-        type="checkbox"
-        bind:checked={polite}
-        name="polite"
-        disabled={pc} />
-    </label>
+  <h4>sharing</h4>
+  {#if !pc}
+    🔴 peerconnection not available
+  {:else}
+    <aside>
+      {#if $oppositePeerId}
+        <label for="polite">
+          polite
+          <input
+            type="checkbox"
+            bind:checked={polite}
+            name="polite"
+            disabled={pc} />
+        </label>
 
-    <button on:click={createPC} disabled={pc}>create pc</button>
+        <button on:click={createPC} disabled={!pc}>create pc</button>
 
-    {#if pc}
-      <button on:click={share}>▶️ share</button>
-      <button on:click={stop}>⏹ stop</button>
-    {/if}
-  </aside>
+        {#if pc}
+          <button on:click={share}>▶️ share</button>
+          <button on:click={stop}>⏹ stop</button>
+        {/if}
+      {/if}
+    </aside>
 
-  <main>
-    <video bind:this={videoTag} autoplay="true">
-      <track kind="captions" />
-    </video>
-  </main>
+    <main>
+      <video bind:this={videoTag} autoplay="true">
+        <track kind="captions" />
+      </video>
+    </main>
+  {/if}
 </section>

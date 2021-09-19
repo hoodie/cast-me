@@ -17,14 +17,16 @@
   };
 </script>
 
-<section>
-  {#if !$oppositePeerId}
-    <em>not yet connected</em>
-  {:else if $oppositePeerLeftReason}
+{#if !$oppositePeerId}
+
+{:else if $oppositePeerLeftReason}
+  <section>
     <em>{$oppositePeerLeftReason}</em>
-  {:else}
+  </section>
+{:else}
+  <section>
     <label for="my code">
-      <h6>chat</h6>
+      <h5>chat</h5>
       <ul>
         {#each $messageHistory as message, i (i)}
           <li>
@@ -40,5 +42,5 @@
       bind:value={currentMessage}
       placeholder="chat message"
       type="text" />
-  {/if}
-</section>
+  </section>
+{/if}
