@@ -2,12 +2,13 @@
   import { onMount } from "svelte";
   import { initP2P, PeerInterface } from "./peering";
   import {
+    iInitiatedTheCall,
     oppositePeerId,
     oppositePeerLeftReason,
     messageHistory
   } from "./stores";
 
-  $: polite = false;
+  $: polite = Boolean($iInitiatedTheCall);
   $: p2p = undefined;
   $: transceiver = undefined;
 
@@ -73,7 +74,7 @@
         sharing video
         <label for="polite">
           polite
-          <input type="checkbox" bind:checked={polite} name="polite" />
+          <input type="checkbox" checked={polite} name="polite" readonly/>
         </label>
 
         <button on:click={connectP2P}>connect p2p</button>

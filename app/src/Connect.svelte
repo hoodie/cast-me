@@ -1,6 +1,10 @@
 <script lang="ts">
   import { ownPeerId, sendAsRaw } from "./network";
-  import { oppositePeerId, oppositePeerLeftReason } from "./stores";
+  import {
+    iInitiatedTheCall,
+    oppositePeerId,
+    oppositePeerLeftReason
+  } from "./stores";
 
   let connectionCode;
 
@@ -12,6 +16,7 @@
     if (!!connectionCode) {
       sendAsRaw({ connect: connectionCode.split(" ").join("-") });
       connectionCode = "";
+      iInitiatedTheCall.set(true);
     } else {
       console.warn("not connecting");
     }
@@ -32,7 +37,7 @@
   const unsubConnectionLost = oppositePeerLeftReason.subscribe(reason => {
     if (reason) {
       console.debug("disconnected, starting reload countdown");
-      countdownFrom(5, () => window.location = window.location);
+      countdownFrom(5, () => (window.location = window.location));
       unsubConnectionLost();
     }
   });

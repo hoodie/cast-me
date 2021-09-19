@@ -17,6 +17,8 @@ export const createStore: CreateWritable<any> = (name) => {
 export const oppositePeerId = createStore('connected');
 export const oppositePeerLeftReason = createStore('oppositePeerLeftReason');
 
+export const iInitiatedTheCall = writable(false);
+
 export const messageHistory = (() => {
     const { subscribe, update } = writable([]);
     payloadMsg.subscribe(msg => {
