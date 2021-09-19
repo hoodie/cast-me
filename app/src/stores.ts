@@ -19,7 +19,10 @@ export const oppositePeerLeftReason = createStore('oppositePeerLeftReason');
 
 export const messageHistory = (() => {
     const { subscribe, update } = writable([]);
-    payloadMsg.subscribe(msg => update(history => [...history.slice(-100), msg]))
+    payloadMsg.subscribe(msg => {
+        console.warn('message', msg);
+        update(history => [...history.slice(-100), msg])
+    })
     return {
         subscribe
     }

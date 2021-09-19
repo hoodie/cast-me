@@ -4,8 +4,21 @@ const defaults = {
     polite: false,
 };
 
-export function initPC({ polite } = defaults) {
+export interface PeerInterface {
+    pc: RTCPeerConnection;
+    negotiate(): void;
+}
+
+export function initP2P({ polite } = defaults): PeerInterface {
     const pc = new RTCPeerConnection();
+    const negotiate = async () => {
+        const offer = await pc.createOffer();
+        if (pc.signalingState !== 'stable') { return; }
+        await pc.setLocalDescription(offer);
+        sendAsOffer(pc.localDescription);
+
+    };
+
     pc.onicecandidate = ({ candidate }) => {
         console.debug({ candidate });
         sendAsCandidate(candidate);
@@ -14,10 +27,7 @@ export function initPC({ polite } = defaults) {
 
     pc.onnegotiationneeded = async () => {
         console.debug('negotiation needed')
-        const offer = await pc.createOffer();
-        if (pc.signalingState !== 'stable') { return; }
-        await pc.setLocalDescription(offer);
-        sendAsOffer(pc.localDescription);
+        negotiate();
     };
 
     offers.subscribe(async offer => {
@@ -42,5 +52,5 @@ export function initPC({ polite } = defaults) {
         await pc.setRemoteDescription(answer)
     });
 
-    return pc;
+    return { pc, negotiate };
 }

@@ -29,9 +29,9 @@
       <h5>chat</h5>
       <ul>
         {#each $messageHistory as message, i (i)}
-          <li>
-            {#if typeof message === 'string'}{message}{/if}
-          </li>
+          {#if typeof message === 'string'}
+            <li>{message}</li>
+          {/if}
         {/each}
       </ul>
     </label>
