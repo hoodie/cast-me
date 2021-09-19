@@ -16,24 +16,19 @@
   };
 </script>
 
-<style>
-  h3 > code {
-    font-size: 2.6em;
-  }
-</style>
-
-{#if $oppositePeerId}
-  <section>
+<section>
+  {#if $oppositePeerId}
     {#if $oppositePeerLeftReason}
       <h6>🔴 {$oppositePeerLeftReason}</h6>
     {:else}
       <h6>✅ connected</h6>
     {/if}
-  </section>
-{:else}
-  <section>
+  {:else}
     <h6>⏳ not yet connected</h6>
-  </section>
+  {/if}
+</section>
+
+{#if !$oppositePeerId}
   <section>
     <h4>connect to other peer</h4>
 
@@ -56,7 +51,7 @@
       <tr>
         <td />
         <td>
-          <strong>↑ enter their code here </strong>
+          <strong>↑ enter their code here</strong>
         </td>
       </tr>
     </table>

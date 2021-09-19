@@ -17,13 +17,7 @@
   };
 </script>
 
-{#if !$oppositePeerId}
-
-{:else if $oppositePeerLeftReason}
-  <section>
-    <em>{$oppositePeerLeftReason}</em>
-  </section>
-{:else}
+{#if $oppositePeerId}
   <section>
     <label for="my code">
       <h5>chat</h5>
