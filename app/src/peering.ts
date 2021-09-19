@@ -1,13 +1,13 @@
-import {sendAsCandidate, sendAsOffer, sendAsAnswer, candidates, offers, answers} from './network'
+import { sendAsCandidate, sendAsOffer, sendAsAnswer, candidates, offers, answers } from './network'
 
 const defaults = {
     polite: false,
 };
 
-export function initPC({polite} = defaults) {
+export function initPC({ polite } = defaults) {
     const pc = new RTCPeerConnection();
-    pc.onicecandidate = ({candidate}) => {
-        console.debug({candidate});
+    pc.onicecandidate = ({ candidate }) => {
+        console.debug({ candidate });
         sendAsCandidate(candidate);
     };
     candidates.subscribe((async candidate => await pc.addIceCandidate(candidate)));
@@ -23,14 +23,14 @@ export function initPC({polite} = defaults) {
     offers.subscribe(async offer => {
         console.debug('offer', offer);
         if (pc.signalingState !== 'stable') {
-            console.debug('offer but unstable ', {polite})
-            if(!polite) { return ;}
+            console.debug('offer but unstable ', { polite })
+            if (!polite) { return; }
             await Promise.all([
-                pc.setLocalDescription({type: 'rollback'}),
+                pc.setLocalDescription({ type: 'rollback' }),
                 pc.setRemoteDescription(offer),
             ]);
         } else {
-            console.debug('offer in stable', {polite})
+            console.debug('offer in stable', { polite })
             await pc.setRemoteDescription(offer);
         }
         await pc.setLocalDescription(await pc.createAnswer());

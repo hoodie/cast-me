@@ -6,9 +6,9 @@
   },
   "devDependencies": {
     "@tsconfig/svelte": "^2.0.1",
-    "@types/node": "^16.7.13",
+    "@types/node": "^16.9.4",
     "cross-env": "^7.0.3",
-    "css-loader": "^6.2.0",
+    "css-loader": "^6.3.0",
     "mini-css-extract-plugin": "^2.2.2",
     "svelte": "^3.42.4",
     "svelte-check": "^2.2.5",

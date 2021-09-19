@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   import Chat from "./Chat.svelte";
   import Connect from "./Connect.svelte";
   import Share from "./Share.svelte";
