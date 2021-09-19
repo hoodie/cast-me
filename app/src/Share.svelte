@@ -1,21 +1,17 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { initP2P, PeerInterface } from "./peering";
-  import {
-    iInitiatedTheCall,
-    oppositePeerId,
-    oppositePeerLeftReason,
-    messageHistory
-  } from "./stores";
+  import { initP2P } from "./peering";
+  import { iInitiatedTheCall, oppositePeerId } from "./stores";
 
   $: polite = Boolean($iInitiatedTheCall);
   $: p2p = undefined;
   $: transceiver = undefined;
 
+  let pcInitError;
   let videoTag; //: HTMLVideoElement;
 
   function createPC() {
-    p2p = initP2P(polite);
+    p2p = initP2P({ polite });
     p2p.pc.ontrack = ({ streams: [stream] }) => {
       videoTag.srcObject = stream;
       videoTag.play();
@@ -37,7 +33,7 @@
     share(stream);
   }
 
-  async function share(stream: MEdiaStream) {
+  async function share(stream: MediaStream) {
     console.debug("share", { stream });
     const [track] = stream.getTracks();
     if (false && transceiver) {
@@ -54,15 +50,14 @@
   }
 
   onMount(() => {
-    createPC();
+    try {
+      createPC();
+    } catch (error) {
+      pcInitError = error;
+      console.warn("init failed", error);
+    }
   });
 </script>
-
-<style>
-  video {
-    width: 100%;
-  }
-</style>
 
 {#if $oppositePeerId}
   <section>
@@ -74,7 +69,7 @@
         sharing video
         <label for="polite">
           polite
-          <input type="checkbox" checked={polite} name="polite" readonly/>
+          <input type="checkbox" checked={polite} name="polite" readonly />
         </label>
 
         <button on:click={connectP2P}>connect p2p</button>
@@ -85,10 +80,21 @@
       </aside>
 
       <main>
-        <video bind:this={videoTag} autoplay="true" controls="true">
+        <video bind:this={videoTag} autoplay={true} controls={true}>
           <track kind="captions" />
         </video>
       </main>
     {/if}
+    <main>
+      <strong>
+        {pcInitError}
+      </strong>
+    </main>
   </section>
 {/if}
+
+<style>
+  video {
+    width: 100%;
+  }
+</style>

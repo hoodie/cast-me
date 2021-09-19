@@ -4,6 +4,12 @@
   import Share from "./Share.svelte";
 </script>
 
+<main>
+  <Connect />
+  <Chat />
+  <Share />
+</main>
+
 <style>
   main {
     text-align: center;
@@ -18,9 +24,3 @@
     }
   }
 </style>
-
-<main>
-  <Connect />
-  <Chat />
-  <Share />
-</main>

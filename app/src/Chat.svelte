@@ -1,10 +1,6 @@
 <script lang="ts">
   import { sendAsRaw } from "./network";
-  import {
-    oppositePeerId,
-    oppositePeerLeftReason,
-    messageHistory
-  } from "./stores";
+  import { oppositePeerId, messageHistory } from "./stores";
 
   $: currentMessage = $oppositePeerId ? `hi "${$oppositePeerId}"` : "";
   const handleSubmit = ({ key }: KeyboardEvent) => key === "Enter" && submit();
@@ -23,7 +19,7 @@
       <h5>chat</h5>
       <ul>
         {#each $messageHistory as message, i (i)}
-          {#if typeof message === 'string'}
+          {#if typeof message === "string"}
             <li>{message}</li>
           {/if}
         {/each}
@@ -35,6 +31,7 @@
       on:keydown={handleSubmit}
       bind:value={currentMessage}
       placeholder="chat message"
-      type="text" />
+      type="text"
+    />
   </section>
 {/if}

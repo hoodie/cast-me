@@ -8,7 +8,7 @@
 
   let connectionCode;
 
-  const handleSubmit = ({ key }) => key === "Enter" && connect();
+  const handleSubmit = ({ key }: KeyboardEvent) => key === "Enter" && connect();
 
   let reloadCountdown;
 
@@ -22,7 +22,7 @@
     }
   };
 
-  const countdownFrom = (seconds: number, then: function) => {
+  const countdownFrom = (seconds: number, then: Function) => {
     reloadCountdown = seconds;
     if (seconds > 0) {
       console.debug("countdown", seconds);
