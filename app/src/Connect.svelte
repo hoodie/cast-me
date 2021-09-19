@@ -6,6 +6,8 @@
 
   const handleSubmit = ({ key }) => key === "Enter" && connect();
 
+  let reloadCountdown;
+
   const connect = () => {
     if (!!connectionCode) {
       sendAsRaw({ connect: connectionCode.split(" ").join("-") });
@@ -14,6 +16,26 @@
       console.warn("not connecting");
     }
   };
+
+  const countdownFrom = (seconds: number, then: function) => {
+    reloadCountdown = seconds;
+    if (seconds > 0) {
+      console.debug("countdown", seconds);
+      setTimeout(() => {
+        countdownFrom(seconds - 1, then);
+      }, 1000);
+    } else {
+      then();
+    }
+  };
+  // reload when disconnected
+  const unsubConnectionLost = oppositePeerLeftReason.subscribe(reason => {
+    if (reason) {
+      console.debug("disconnected, starting reload countdown");
+      countdownFrom(5, () => window.location = window.location);
+      unsubConnectionLost();
+    }
+  });
 </script>
 
 <section>
@@ -26,6 +48,7 @@
   {:else}
     <h6>⏳ not yet connected</h6>
   {/if}
+  {#if reloadCountdown}reloading in {reloadCountdown} seconds{/if}
 </section>
 
 {#if !$oppositePeerId}
