@@ -1,9 +1,11 @@
 import { webSocket } from "rxjs/webSocket";
 import { pluck, filter, map, first } from "rxjs/operators";
-import {
+import type {
     BaseCommand,
     ByeMsg,
     Command,
+} from "./protocol";
+import {
     isAnswerCommand,
     isByeMsg,
     isCandidateCommand,

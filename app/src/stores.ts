@@ -1,4 +1,5 @@
-import { writable, Writable } from 'svelte/store'
+import { writable } from 'svelte/store'
+import type { Writable } from 'svelte/store'
 import { connectReceived, byeReceived, payloadMsg } from './network'
 
 type CreateWritable<T> = (name: string) => Omit<Writable<T>, 'update'>;
