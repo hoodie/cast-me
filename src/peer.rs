@@ -1,3 +1,5 @@
+#![allow(clippy::suspicious_else_formatting)]
+
 use futures::{
     sink::SinkExt,
     stream::{SplitSink, SplitStream},

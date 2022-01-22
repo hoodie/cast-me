@@ -20,10 +20,31 @@ async fn peer_connected(ws: WebSocket, broker: Broker) {
     peer.start().await;
 }
 
+#[derive(Debug, serde::Deserialize)]
+pub struct ServerConfig {
+    pub host: String,
+    pub port: u16,
+}
+#[derive(Debug, serde::Deserialize)]
+pub struct Config {
+    pub server: ServerConfig,
+    pub log_config: Option<String>,
+}
+
+impl Config {
+    pub fn from_env() -> Result<Self, config::ConfigError> {
+        let mut cfg = config::Config::new();
+        cfg.merge(config::Environment::new())?;
+        cfg.try_into()
+    }
+}
+
 #[tokio::main]
 #[tracing::instrument]
 async fn main() {
     color_backtrace::install();
+    dotenv::dotenv().unwrap();
+    let config = Config::from_env().unwrap();
 
     tracing_subscriber::fmt()
         .pretty()
@@ -33,6 +54,7 @@ async fn main() {
         .with_env_filter(EnvFilter::from_default_env())
         // sets this to be the default, global collector for this application.
         .init();
+    // console_subscriber::init();
 
     let (broker, broker_loop) = Broker::create();
     let broker = warp::any().map(move || broker.clone());
@@ -51,7 +73,10 @@ async fn main() {
 
     let routes = test.or(app).or(channel).or(redirect_to_app);
 
-    let listen_on = std::net::SocketAddr::from(([0, 0, 0, 0], 3030));
+    let listen_on: std::net::SocketAddr = format!("{}:{}", config.server.host, config.server.port)
+        .parse()
+        .unwrap();
+
     tracing::info!("listening on {}", listen_on);
 
     tokio::select! {
