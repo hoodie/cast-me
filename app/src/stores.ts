@@ -1,5 +1,5 @@
 import { writable, Writable } from 'svelte/store'
-import { connectReceived, byeReceived, payloadMsg } from './network'
+import { connectReceived, byeReceived, payloadMsg, goFullScreenReceived } from './network'
 
 type CreateWritable<T> = (name: string) => Omit<Writable<T>, 'update'>;
 
@@ -38,4 +38,10 @@ connectReceived.subscribe(correspondent => {
 byeReceived.subscribe(({ reason }) => {
     console.debug('peer left', reason)
     oppositePeerLeftReason.set(reason);
+});
+
+export const goFullScreen = writable(false);
+goFullScreenReceived.subscribe((payload) => {
+    console.debug('fullscreen', payload)
+    goFullScreen.set(payload);
 });

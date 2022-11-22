@@ -4,9 +4,11 @@
   import {
     iInitiatedTheCall,
     oppositePeerId,
+    goFullScreen,
     oppositePeerLeftReason,
     messageHistory
   } from "./stores";
+  import { sendGoFullscreenCommand } from "./network";
 
   $: polite = Boolean($iInitiatedTheCall);
   $: p2p = undefined;
@@ -37,7 +39,7 @@
     share(stream);
   }
 
-  async function share(stream: MEdiaStream) {
+  async function share(stream: MediaStream) {
     console.debug("share", { stream });
     const [track] = stream.getTracks();
     if (false && transceiver) {
@@ -53,8 +55,15 @@
     transceiver.stop();
   }
 
+  function setGoFullscreen(on: boolean) {
+    sendGoFullscreenCommand(on);
+  }
+
   onMount(() => {
     createPC();
+    goFullScreen.subscribe(value => {
+      if (value) videoTag.requestFullscreen();
+    });
   });
 </script>
 
@@ -74,7 +83,7 @@
         sharing video
         <label for="polite">
           polite
-          <input type="checkbox" checked={polite} name="polite" readonly/>
+          <input type="checkbox" checked={polite} name="polite" readonly />
         </label>
 
         <button on:click={connectP2P}>connect p2p</button>
@@ -82,6 +91,10 @@
         <button on:click={shareVideo}>▶️ share 📽️</button>
         <button on:click={shareScreen}>▶️ share 🖥️</button>
         <button on:click={stop}>⏹ stop</button>
+        fullscreen
+        <button on:click={() => setGoFullscreen(true)}>on</button>
+        <button on:click={() => setGoFullscreen(false)}>off</button>
+        {$goFullScreen}
       </aside>
 
       <main>
