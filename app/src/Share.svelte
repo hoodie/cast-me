@@ -1,7 +1,14 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { initP2P } from "./peering";
-  import { iInitiatedTheCall, oppositePeerId } from "./stores";
+  import { initP2P, PeerInterface } from "./peering";
+  import {
+    iInitiatedTheCall,
+    oppositePeerId,
+    goFullScreen,
+    oppositePeerLeftReason,
+    messageHistory
+  } from "./stores";
+  import { sendGoFullscreenCommand } from "./network";
 
   $: polite = Boolean($iInitiatedTheCall);
   $: p2p = undefined;
@@ -49,9 +56,16 @@
     transceiver.stop();
   }
 
+  function setGoFullscreen(on: boolean) {
+    sendGoFullscreenCommand(on);
+  }
+
   onMount(() => {
     try {
-      createPC();
+    createPC();
+    goFullScreen.subscribe(value => {
+      if (value) videoTag.requestFullscreen();
+    });
     } catch (error) {
       pcInitError = error;
       console.warn("init failed", error);
@@ -77,6 +91,10 @@
         <button on:click={shareVideo}>▶️ share 📽️</button>
         <button on:click={shareScreen}>▶️ share 🖥️</button>
         <button on:click={stop}>⏹ stop</button>
+        fullscreen
+        <button on:click={() => setGoFullscreen(true)}>on</button>
+        <button on:click={() => setGoFullscreen(false)}>off</button>
+        {$goFullScreen}
       </aside>
 
       <main>
