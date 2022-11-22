@@ -11,6 +11,7 @@ export interface PeerInterface {
 
 export function initP2P({ polite } = defaults): PeerInterface {
     const pc = new RTCPeerConnection();
+
     const negotiate = async () => {
         const offer = await pc.createOffer();
         if (pc.signalingState !== 'stable') { return; }
