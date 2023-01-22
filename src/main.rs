@@ -34,10 +34,10 @@ pub struct Config {
 
 impl Config {
     pub fn from_env() -> Result<Self, config::ConfigError> {
-        Ok(config::Config::builder()
+        config::Config::builder()
             .add_source(config::Environment::default())
             .build()?
-            .try_deserialize()?)
+            .try_deserialize()
     }
 }
 
