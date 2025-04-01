@@ -84,7 +84,7 @@ impl fmt::Display for Protocol {
 #[derive(Debug)]
 pub enum SendError {
     NoCorrespondant,
-    FailedToSendOnWebsocket(mpsc::error::SendError<PeerMessage>),
+    FailedToSendOnWebsocket(#[allow(dead_code)] mpsc::error::SendError<PeerMessage>),
 }
 
 #[derive(Debug)]

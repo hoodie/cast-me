@@ -1,3 +1,49 @@
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+  a:hover {
+      color: rgb(0,100,200);
+  }
+  button {
+    background-color: #f9f9f9;
+  }
+
+  button {
+	background-color: #f4f4f4;
+	outline: none;
+  }
+
+  button:disabled {
+	color: #999;
+  }
+
+  button:not(:disabled):active {
+	background-color: #ddd;
+  }
+
+  button:focus {
+	border-color: #666;
+  }
+}
+
+
 html, body {
 	position: relative;
 	width: 100%;
@@ -5,7 +51,6 @@ html, body {
 }
 
 body {
-	color: #333;
 	margin: 0;
 	padding: 8px;
 	box-sizing: border-box;
@@ -13,7 +58,6 @@ body {
 }
 
 a {
-	color: rgb(0,100,200);
 	text-decoration: none;
 }
 
@@ -21,9 +65,6 @@ a:hover {
 	text-decoration: underline;
 }
 
-a:visited {
-	color: rgb(0,80,160);
-}
 
 label {
 	display: block;
@@ -39,30 +80,12 @@ input, button, select, textarea {
 	border-radius: 2px;
 }
 
-input:disabled {
-	color: #ccc;
+button {
+	outline: none;
 }
 
 input[type="range"] {
 	height: 0;
-}
-
-button {
-	color: #333;
-	background-color: #f4f4f4;
-	outline: none;
-}
-
-button:disabled {
-	color: #999;
-}
-
-button:not(:disabled):active {
-	background-color: #ddd;
-}
-
-button:focus {
-	border-color: #666;
 }
 
 h4, h5, h6 {
@@ -76,7 +99,7 @@ h4, h5 {
 
 section {
 	text-align: left;
-	
+
 	display: block;
 	padding: 0.5em;
 	margin: 0 1em 1em 0;

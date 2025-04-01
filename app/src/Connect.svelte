@@ -61,7 +61,8 @@
     <h4>connect to other peer</h4>
 
     <table>
-      <tr>
+      <thead>
+          <tr>
         <td>
           <input type="text" value={$ownPeerId} readonly />
         </td>
@@ -77,12 +78,13 @@
         </td>
       </tr>
       <tr>
-        <td />
+        <td>
+        </td>
         <td>
           <strong>↑ enter their code here</strong>
         </td>
       </tr>
+      </thead>
     </table>
-
   </section>
 {/if}
