@@ -8,7 +8,7 @@ for fun
 
 ```
 # prepare the front end app
-yarn --cwd app build
+deno task --cwd app build
 
 # run the everything else
 RUST_LOG=info,cast_me=trace cargo run

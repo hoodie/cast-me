@@ -1,12 +1,7 @@
 {
-    "extends": "@tsconfig/svelte/tsconfig.json",
-    "include": ["src/**/*", "src/node_modules/**/*"],
-    "exclude": ["node_modules/*", "__sapper__/*", "static/*"],
-    "compilerOptions": {
-        // ... Omitted...
-        "lib": ["ESNext", "DOM", "DOM.Iterable"],
-        "target": "ESnext",
-    
-        "types": ["svelte"]
-      }
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
 }
