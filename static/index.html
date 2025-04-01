@@ -1,36 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
+  <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cast Me!</title>
-</head>
+  </head>
 
-<body>
-
-</body>
-<script>
+  <body></body>
+  <script>
     // @ts-check
     const socket = new WebSocket(`ws://${location.host}/ws`);
 
-    socket.onmessage = ({data}) => {
-        console.debug('received', data);
-        try {
-            const { welcome } = JSON.parse(data);
-            document.write(`<code>talkTo("${welcome}")</code>`);
-        } catch (error) {
-
-        }
-    }
+    socket.onmessage = ({ data }) => {
+      console.debug("received", data);
+      try {
+        const { welcome } = JSON.parse(data);
+        document.write(`<code>talkTo("${welcome}")</code>`);
+      } catch (error) {
+      }
+    };
     socket.onclose = console.warn;
 
-    window['CONNECTION'] = socket;
-    console.log(window['CONNECTION'])
+    window["CONNECTION"] = socket;
+    console.log(window["CONNECTION"]);
 
-    window['talkTo'] = uuid => socket.send(JSON.stringify({ connect: uuid }))
-    window['send'] = anything => socket.send(JSON.stringify(anything))
-
-</script>
-
+    window["talkTo"] = (uuid) =>
+      socket.send(JSON.stringify({ connect: uuid }));
+    window["send"] = (anything) => socket.send(JSON.stringify(anything));
+  </script>
 </html>

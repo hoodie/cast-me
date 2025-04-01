@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { initP2P, PeerInterface } from "./peering";
+  import { initP2P, type PeerInterface } from "./peering";
   import {
     iInitiatedTheCall,
     oppositePeerId,
