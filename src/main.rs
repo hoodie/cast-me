@@ -1,9 +1,14 @@
+use axum::{response::Redirect, routing::get, Router};
+use axum_server::tls_rustls::RustlsConfig;
 use tokio::sync::mpsc;
+use tower_http::services::ServeDir;
 use tracing_subscriber::EnvFilter;
 use warp::{http::Uri, ws::WebSocket, Filter};
 
 mod broker;
 mod peer;
+mod peer_actor;
+mod routes;
 
 use crate::{broker::Broker, peer::Peer};
 
@@ -49,8 +54,8 @@ async fn main() {
     let config = Config::from_env().unwrap();
 
     tracing_subscriber::fmt()
-        .pretty()
-        .with_thread_names(true)
+        // .pretty()
+        .with_thread_names(false)
         // enable everything
         .with_max_level(tracing::Level::TRACE)
         .with_env_filter(EnvFilter::from_default_env())
@@ -58,35 +63,65 @@ async fn main() {
         .init();
     // console_subscriber::init();
 
-    let (broker, broker_loop) = Broker::create();
-    let broker = warp::any().map(move || broker.clone());
+    #[allow(unused)]
+    let (warp_server, broker_loop) =
+        {
+            let (broker, broker_loop) = Broker::create();
+            let broker = warp::any().map(move || broker.clone());
 
-    let channel =
-        warp::path("ws")
-            .and(warp::ws())
-            .and(broker)
-            .map(|ws: warp::ws::Ws, broker: Broker| {
-                ws.on_upgrade(move |socket| peer_connected(socket, broker))
-            });
+            let channel = warp::path("ws").and(warp::ws()).and(broker).map(
+                |ws: warp::ws::Ws, broker: Broker| {
+                    ws.on_upgrade(move |socket| peer_connected(socket, broker))
+                },
+            );
 
-    let redirect_to_app = warp::any().map(|| warp::redirect(Uri::from_static("/app/")));
-    let test = warp::path("test").map(|| warp::reply::html(include_str!("../static/index.html")));
-    let app = warp::path("app").and(warp::fs::dir("./app/dist/"));
+            let redirect_to_app = warp::any().map(|| warp::redirect(Uri::from_static("/app/")));
+            let test =
+                warp::path("test").map(|| warp::reply::html(include_str!("../static/index.html")));
+            let app = warp::path("app").and(warp::fs::dir("./app/dist/"));
 
-    let routes = test.or(app).or(channel).or(redirect_to_app);
+            let routes = test.or(app).or(channel).or(redirect_to_app);
 
-    let listen_on: std::net::SocketAddr = format!("{}:{}", config.server.host, config.server.port)
-        .parse()
-        .unwrap();
+            let listen_on: std::net::SocketAddr =
+                format!("{}:{}", config.server.host, config.server.port)
+                    .parse()
+                    .unwrap();
 
-    tracing::info!("listening on {}", listen_on);
+            let warp_server = warp::serve(routes)
+                .tls()
+                .cert_path("testcerts/cert.pem")
+                .key_path("testcerts/key.pem")
+                .run(listen_on);
+            (warp_server, broker_loop)
+        };
+
+    let axum_server = async {
+        let app = Router::new()
+            .route("/ws", axum::routing::get(routes::websocket_handler))
+            .nest_service("/app", ServeDir::new("./app/dist"))
+            .route("/", get(|| async { Redirect::permanent("/app") }));
+
+        let tls_config = RustlsConfig::from_pem_file("testcerts/cert.pem", "testcerts/key.pem")
+            .await
+            .unwrap();
+
+        let listen_on: std::net::SocketAddr =
+            format!("{}:{}", config.server.host, config.server.port + 1)
+                .parse()
+                .unwrap();
+        tracing::info!("listening on {}", listen_on);
+        axum_server::tls_rustls::bind_rustls(listen_on, tls_config)
+            .serve(app.into_make_service())
+            .await
+            .unwrap()
+
+        // let listener = tokio::net::TcpListener::bind(listen_on).await.unwrap();
+        // axum::serve(listener, app)
+    };
 
     tokio::select! {
-        _ = broker_loop => {},
-        _ = warp::serve(routes)
-            .tls()
-            .cert_path("testcerts/cert.pem")
-            .key_path("testcerts/key.pem")
-            .run(listen_on) => {},
+        // _ = broker_loop => {},
+        // _ = warp_server => {},
+        _ = axum_server => {},
     };
 }

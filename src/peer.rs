@@ -66,7 +66,7 @@ impl From<&str> for PeerMessage {
 // websocket json protocol
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-enum Protocol {
+pub enum Protocol {
     Welcome(PeerId),
     Connect(PeerId),
     Connected(PeerId),
