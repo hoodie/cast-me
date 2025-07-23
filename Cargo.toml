@@ -16,7 +16,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 dotenv = "0.15"
 config = "0.15"
 anyhow = "1.0.98"
-tower-http = { version = "0.6.2", features = ["fs"] }
+tower-http = { version = "0.6.6", features = ["fs"] }
 #console-subscriber = "0.1.0"
 
 [dependencies.axum]
