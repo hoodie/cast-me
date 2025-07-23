@@ -5,8 +5,10 @@ use tokio::{
     task::{self, JoinHandle},
 };
 
-use crate::{
-    peer::{PeerId, PeerMessage, PeerSender},
+use crate::PeerId;
+
+use super::{
+    peer::{PeerMessage, PeerSender},
     Sender,
 };
 

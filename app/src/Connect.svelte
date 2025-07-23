@@ -1,16 +1,12 @@
 <script lang="ts">
   import { ownPeerId, sendAsRaw } from "./network";
-  import {
-    iInitiatedTheCall,
-    oppositePeerId,
-    oppositePeerLeftReason
-  } from "./stores";
+  import { iInitiatedTheCall, oppositePeerId, oppositePeerLeftReason } from "./stores";
 
-  let connectionCode;
+  let connectionCode: string = "";
 
   const handleSubmit = ({ key }: KeyboardEvent) => key === "Enter" && connect();
 
-  let reloadCountdown;
+  let reloadCountdown: number | undefined;
 
   const connect = () => {
     if (!!connectionCode) {
@@ -34,10 +30,10 @@
     }
   };
   // reload when disconnected
-  const unsubConnectionLost = oppositePeerLeftReason.subscribe(reason => {
+  const unsubConnectionLost = oppositePeerLeftReason.subscribe((reason) => {
     if (reason) {
       console.debug("disconnected, starting reload countdown");
-      countdownFrom(5, () => (window.location = window.location));
+      countdownFrom(5, () => (window.location.href = window.location.href));
       unsubConnectionLost();
     }
   });
@@ -62,28 +58,26 @@
 
     <table>
       <thead>
-          <tr>
-        <td>
-          <input type="text" value={$ownPeerId} readonly />
-        </td>
-        <td>
-
-          <input
-            on:submit={connect}
-            on:keydown={handleSubmit}
-            bind:value={connectionCode}
-            placeholder="enter opposite peerId"
-            type="text" />
-
-        </td>
-      </tr>
-      <tr>
-        <td>
-        </td>
-        <td>
-          <strong>↑ enter their code here</strong>
-        </td>
-      </tr>
+        <tr>
+          <td>
+            <input type="text" value={$ownPeerId} readonly />
+          </td>
+          <td>
+            <input
+              on:submit={connect}
+              on:keydown={handleSubmit}
+              bind:value={connectionCode}
+              placeholder="enter opposite peerId"
+              type="text"
+            />
+          </td>
+        </tr>
+        <tr>
+          <td> </td>
+          <td>
+            <strong>↑ enter their code here</strong>
+          </td>
+        </tr>
       </thead>
     </table>
   </section>
