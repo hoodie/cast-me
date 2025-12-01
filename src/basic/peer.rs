@@ -68,7 +68,7 @@ pub struct Peer {
 
 impl Peer {
     pub fn new(ws: WebSocket, broker_addr: Sender<BrokerMsg>) -> Self {
-        let my_id = PeerId::new();
+        let my_id = PeerId::default();
         let (peer_sender, peer_receiver) = mpsc::unbounded_channel::<PeerMessage>();
 
         let (ws_sender, ws_receiver) = ws.split();

@@ -6,8 +6,8 @@ use std::fmt;
 #[derive(PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PeerId(String);
 
-impl PeerId {
-    pub fn new() -> PeerId {
+impl Default for PeerId {
+    fn default() -> PeerId {
         PeerId(human_hash::humanize(&Uuid::new_v4(), 2))
     }
 }

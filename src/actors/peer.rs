@@ -21,7 +21,7 @@ pub struct Peer {
 impl Peer {
     pub fn new(sender: WsSender) -> Peer {
         Self {
-            id: PeerId::new(),
+            id: PeerId::default(),
             ws_sender: sender,
             correspondent: None,
         }
@@ -64,7 +64,7 @@ impl Actor for Peer {
             .await
             .send(super::protocol::Register {
                 id: self.id.clone(),
-                addr: ctx.weak_address().unwrap(),
+                addr: ctx.weak_address(),
             })
             .await?;
 

@@ -15,8 +15,8 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 dotenv = "0.15"
 config = "0.15"
-anyhow = "1.0.98"
-tower-http = { version = "0.6.6", features = ["fs"] }
+anyhow = "1.0"
+tower-http = { version = "0.6.7", features = ["fs"] }
 #console-subscriber = "0.1.0"
 
 [dependencies.axum]
@@ -30,7 +30,7 @@ features = ["tls-rustls"]
 [dependencies.hannibal]
 path = "../hannibal"
 features = ["tokio_runtime"]
-version = "0.12"
+version = "0.14"
 
 [dependencies.serde]
 version = "1"
@@ -40,13 +40,13 @@ features = ["derive"]
 version = "1"
 features = ["full"]
 
-
 [dependencies.uuid]
 version = "1"
 features = ["v4", "serde"]
 
 [dependencies.warp]
-features = ["tls"]
-version = "0.3"
+features = ["websocket"]
+version = "0.4"
+
 [profile.dev.package."*"]
 opt-level = 3
